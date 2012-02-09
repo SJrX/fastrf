@@ -94,6 +94,7 @@ public class RegtreeFwd {
         LinkedList<Integer> queue = new LinkedList<Integer>();
         
         for (int i=0; i < thetarows; i++) {
+            vars[i] = 0;
             queue.add(0);
             while(!queue.isEmpty()) {
                 int thisnode = queue.poll();
@@ -106,7 +107,6 @@ public class RegtreeFwd {
                     if (splitvar == 0) {
                         // We are in leaf node. store results.
                         result[i] += tree.weightedpred[thisnode];
-                        vars[i] += tree.weightedvar[thisnode];
                         break;
                     } else if (Math.abs(splitvar) > thetacols) {
                         // Splitting on instance - pass this instance down both children
@@ -124,112 +124,11 @@ public class RegtreeFwd {
                         }
                     }
                 }
-            }
-            if (tree.logModel == 1) {
-                double nonlog_tree_mean = result[i];
-                double nonlog_tree_var = vars[i];
-                vars[i] = Math.log(nonlog_tree_var / (nonlog_tree_mean * nonlog_tree_mean)+1);
-                result[i] = (Math.log(nonlog_tree_mean) - vars[i]/2)  * Utils.l10e;
-                vars[i] *= Utils.l10e * Utils.l10e;
             }
         }
         Object[] retn = new Object[2];
         retn[0] = result;
         retn[1] = vars;
-        return retn;
-    }
-    
-    
-    /**
-     * Propogates configurations(Theta) and instances(X) down the tree, and returns a size 2 array containing
-     * leafIdxs : vector. indices of leaves that at least one given configuration made it to
-     * ThetaIdxs : matrix of size leafIdxs.length*unknown. ThetaIdxs[i][j] means Theta[j] made it into leaf[leafIdxs[i]].
-     * @param tree the regtree to use
-     * @param Theta a vector of configuration parameters
-     * @param X a vector of instance parameters. If the tree has already been preprocessed, this argument is ignored.
-     */
-    public static Object[] fwdThetas(Regtree tree, double[][] Theta) {
-        if (Theta == null || Theta.length == 0) {
-            throw new RuntimeException("Theta must not be empty");
-        }
-        int thetarows = Theta.length;
-        int thetacols = Theta[0].length;
-        int numnodes = tree.node.length;
-        if (numnodes == 0) {
-            throw new RuntimeException("Tree must exist.");
-        }
-        if (tree.cut.length != numnodes) {
-            throw new RuntimeException("cut must be Nx1 vector.");
-        }
-        if (tree.nodepred.length != numnodes) {
-            throw new RuntimeException("nodepred must be Nx1 vector.");
-        }
-        if (tree.parent.length != numnodes) {
-            throw new RuntimeException("parent must be Nx1 matrix.");
-        }
-        if (tree.children.length != numnodes) {
-            throw new RuntimeException("children must be Nx2 matrix.");
-        }
-        
-        if (!tree.preprocessed) {
-            throw new RuntimeException("fwdThetas can only be called on a preprocessed tree.");
-        }
-        
-        int numLeavesWithTheta = 0;
-        int[][] thetaIdxs = new int[numnodes][thetarows];
-        int[] thetaIdxsLens = new int[numnodes];
-        Arrays.fill(thetaIdxsLens, 0);
-        
-        LinkedList<Integer> queue = new LinkedList<Integer>();
-        for (int i=0; i < thetarows; i++) {
-            queue.add(0);
-            while(!queue.isEmpty()) {
-                int thisnode = queue.poll();
-                while(true) {
-                    int splitvar = tree.var[thisnode];
-                    double cutoff = tree.cut[thisnode];
-                    int left_kid = tree.children[thisnode][0];
-                    int right_kid = tree.children[thisnode][1];
-
-                    if (splitvar == 0) {
-                        // We are in leaf node. store results.
-                        if (thetaIdxsLens[thisnode]==0) {
-                            numLeavesWithTheta++;                            
-                        }
-                        thetaIdxs[thisnode][thetaIdxsLens[thisnode]++] = i;
-                        break;
-                    } else if (Math.abs(splitvar) > thetacols) {
-                        // Splitting on instance - pass this instance down both children
-                        queue.add(right_kid);
-                        thisnode = left_kid;
-                    } else {
-                        if (splitvar > 0) { // continuous
-                            thisnode = (Theta[i][splitvar-1] <= cutoff ? left_kid : right_kid);
-                        } else { // categorical
-                            int x = (int)Theta[i][-splitvar-1];
-                            int split = tree.catsplit[(int)cutoff][x-1];
-                            if (split == 0) thisnode = left_kid;
-                            else if (split == 1) thisnode = right_kid;
-                            else throw new RuntimeException("Missing value -- not allowed in this implementation.");
-                        }
-                    }
-                }
-            }
-        }
-        
-        int[] leafIdxs = new int[numLeavesWithTheta];
-        int[][] condensedThetaIdxs = new int[numLeavesWithTheta][];
-        for (int i=0, counter=0; i < numnodes; i++) {
-            if (thetaIdxsLens[i] == 0) continue;
-            leafIdxs[counter] = i;
-            condensedThetaIdxs[counter] = new int[thetaIdxsLens[i]];
-            System.arraycopy(thetaIdxs[i], 0, condensedThetaIdxs[counter], 0, thetaIdxsLens[i]);
-            counter++;
-        }
-        
-        Object[] retn = new Object[2];
-        retn[0] = leafIdxs;
-        retn[1] = condensedThetaIdxs;
         return retn;
     }
     
@@ -265,15 +164,10 @@ public class RegtreeFwd {
         for (int i=0; i < numnodes; i++) {
             tree.weights[i] = 0;
 			if (tree.var[i] != 0) continue;
-            if (tree.logModel == 1) {
-                double leaf_mean = tree.nodepred[i] / Utils.l10e;
-                double leaf_var = tree.nodevar[i] / (Utils.l10e * Utils.l10e);
-                tree.weightedpred[i] = Math.exp(leaf_mean+leaf_var/2);
-                tree.weightedvar[i] = (Math.exp(leaf_var)-1)*Math.exp(2*leaf_mean + leaf_var);
-            } else {
-                tree.weightedpred[i] = tree.nodepred[i];
-                tree.weightedvar[i] = tree.nodevar[i];
-            }
+            
+            tree.weightedpred[i] = tree.nodepred[i];
+            tree.weightedvar[i] = tree.nodevar[i];
+
         }
         
         if (X == null) {
@@ -340,11 +234,11 @@ public class RegtreeFwd {
         int ret = 0;
         
 		if (
-                   cut_instance_leaf_split_helper(tree, thetacols, left_kid)
+               cut_instance_leaf_split_helper(tree, thetacols, left_kid)
                    + 
-                   cut_instance_leaf_split_helper(tree, thetacols, right_kid) == 2 // This is so we don't short-circuit
-                   && Math.abs(tree.var[thisnode]) > thetacols
-                ) {
+               cut_instance_leaf_split_helper(tree, thetacols, right_kid) == 2 // This is so we don't short-circuit
+               && Math.abs(tree.var[thisnode]) > thetacols
+            ) {
                 // both children are leaves, and this is a split on an instance
                 make_into_leaf(tree, thisnode);
                 ret = 1;
@@ -372,10 +266,6 @@ public class RegtreeFwd {
             tree.ysub[thisnode] = new double[tree.nodesize[thisnode]];
             System.arraycopy(tree.ysub[left_kid], 0, tree.ysub[thisnode], 0, tree.nodesize[left_kid]);
             System.arraycopy(tree.ysub[right_kid], 0, tree.ysub[thisnode], tree.nodesize[left_kid], tree.nodesize[right_kid]);
-
-            tree.is_censored[thisnode] = new boolean[tree.nodesize[thisnode]];
-            System.arraycopy(tree.is_censored[left_kid], 0, tree.is_censored[thisnode], 0, tree.nodesize[left_kid]);
-            System.arraycopy(tree.is_censored[right_kid], 0, tree.is_censored[thisnode], tree.nodesize[left_kid], tree.nodesize[right_kid]);
         } else {
             tree.ysub[thisnode][0] = tree.ysub[left_kid][0] + tree.ysub[right_kid][0]; // sum
             tree.ysub[thisnode][1] = tree.ysub[left_kid][1] + tree.ysub[right_kid][1]; // sumsq

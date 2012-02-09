@@ -2,9 +2,6 @@ package ca.ubc.cs.beta.models.fastrf;
 
 import java.util.*;
 import ca.ubc.cs.beta.models.fastrf.utils.*;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.ObjectOutputStream;
 
 public class RegtreeFit {
     
@@ -25,7 +22,7 @@ public class RegtreeFit {
     
     private static final double INVALID_CRITVAL = -1e13;
     
-    public static Regtree fit(double[][] allTheta, double[][] allX, double[] y, boolean[] cens, RegtreeBuildParams params) {    
+    public static Regtree fit(double[][] allTheta, double[][] allX, double[] y, RegtreeBuildParams params) {    
         Random r = params.random;
         if (r == null) {
             r = new Random();
@@ -44,15 +41,12 @@ public class RegtreeFit {
             dataIdxs[i][0] = (numTheta == 0 ? 0 : r.nextInt(numTheta));
             dataIdxs[i][1] = (numX == 0 ? 0 : r.nextInt(numX));
         }
-        return fit(allTheta, allX, dataIdxs, y, cens, params);
+        return fit(allTheta, allX, dataIdxs, y, params);
     }
     
     
     private static int[][] dataIdxs;
-    private static double[] y;
-    private static boolean[] cens;
-    private static double kappa;
-    
+    private static double[] y;    
 
 	private static double ybar;
 	private static double[] catmeans;
@@ -61,12 +55,7 @@ public class RegtreeFit {
 	private static int[] ycountcum;
 	private static int[] uniqueIdxs;
 	private static int[] dataRowsHere;
-    
-    private static double[] km_mean;
-	private static int[] numUptoCategory;
-	private static int[] sortedByCategory;
-	private static double[] y_in;
-	private static double[] c_in;
+        
 	private static int[] sorder;
 	private static int[] maxlocs;
 	
@@ -74,30 +63,19 @@ public class RegtreeFit {
 	private static int numright;
 	private static int[] leftside;
 	private static int[] rightside;
-
-	private static int[] period;
-	private static double[] period_time;
-	private static int[] N_all;
-	private static int[] O_all;
-	private static int[] C_all;
-	private static int[] N_1;
-	private static int[] O_1;
-	private static int[] N_add;
-	private static int num_periods;
+    
     /**
      * Fits a regression tree.
      * @params allTheta, allX: matrices of all of the configurations/instances
      * @params dataIdxs row i is data point i with X=[allTheta[dataIdxs[i][1]], allX[dataIdxs[i][2]]] and y=y[i].
      * @params y a vector of size X.length of response values
-     * @params cens a vector of size X.length indicating whether the corresponding response is right-censored.
      * @params params see RegtreeBuildParams
      */
-    public static Regtree fit(double[][] allTheta, double[][] allX, int[][] dataIdxs, double[] y, boolean[] cens, RegtreeBuildParams params) {
+    public static Regtree fit(double[][] allTheta, double[][] allX, int[][] dataIdxs, double[] y, RegtreeBuildParams params) {
     	boolean printDebug = false;
     	long startTime = new Date().getTime();
     	long currentTime = startTime;
     	
-        
         if (dataIdxs == null || dataIdxs.length == 0) throw new RuntimeException("Cannot build a tree with no data.");
         int N = dataIdxs.length;
         if (y.length != N) throw new RuntimeException("The number of data points and the number of responses must be the same.");
@@ -160,6 +138,7 @@ public class RegtreeFit {
         allX = actualAllX;
         numX = allX.length;
         
+        // Rows dropped, we have to now renumber dataIdxs to the new rows
         int[][] newDataIdxs = new int[N][2];
         for (int i=0; i < N; i++) {
             int thetaIdx = dataIdxs[i][0], xIdx = dataIdxs[i][1];
@@ -179,20 +158,17 @@ public class RegtreeFit {
         
         RegtreeFit.dataIdxs = dataIdxs;
     	RegtreeFit.y = y;
-    	RegtreeFit.cens = cens;
         
         //=== Extract data from the input params.
         int[] catDomainSizes = params.catDomainSizes;
-        System.out.println("Params:" + params);
+/*         System.out.println("Params:" + params);
         System.out.println("Nvars" + nvars);
         System.out.println("AllX" + Arrays.deepToString(allX));
         System.out.println("AllTheta" + Arrays.deepToString(allTheta));
         System.out.println("dataIdxs" + Arrays.deepToString(dataIdxs));
         System.out.println("y" + Arrays.toString(y));
-        System.out.println("cens:" + Arrays.toString(cens));
-        
-        if(true) throw new RuntimeException("Error");
-        
+        System.out.println("cens:" + Arrays.toString(cens)); */
+
         if (catDomainSizes != null && catDomainSizes.length != nvars) {
             throw new RuntimeException("catDomainSizes must be of the same length as size(X, 2)");
         }
@@ -204,24 +180,14 @@ public class RegtreeFit {
         int[][] condParents = params.condParents;
         int[][][] condParentVals = params.condParentVals; 
         
-        kappa = params.kappa;
-
         //=== Extract tuning parameters.
         double ratioFeatures = params.ratioFeatures;
         int splitMin = params.splitMin;
-
-        boolean hascens = false;
-        for (int i=0; i < N; i++) {
-            if (cens[i]) {
-                hascens = true;
-                break;
-			}
-		}
-        if (hascens) throw new RuntimeException("Censoring Unimplemented!");
     
-        //========== Initialize stuffs. Special codes for root node. ====
+        //========== Initialize stuffs, and special code for root node. ====
         int[] nodenumber = new int[2*N];
         int[] nodesize = new int[2*N];
+        nodesize[0] = N;
         
         int[] cutvar = new int[2*N];
         double[] cutpoint = new double[2*N];
@@ -229,7 +195,6 @@ public class RegtreeFit {
         int[] rightchildren = new int[2*N];
         int[] parent = new int[2*N];
         double[][] ysub = new double[2*N][];
-        boolean[][] censsub = new boolean[2*N][];
         
         int ncatsplit = 0;
         int[][] catsplit = new int[2*N][];
@@ -237,11 +202,8 @@ public class RegtreeFit {
         int[] randomPermutation = new int[nvars];
         double[] variableValuesHere = new double[N];
         dataRowsHere = new int[Math.max(N, maxDomSize)];
-        sortedByCategory = dataRowsHere;
         uniqueIdxs = new int[N];
-        rows_km = uniqueIdxs; // share this memory with 2 variables
         catmeans = new double[maxDomSize];
-        km_mean = catmeans; // share this memory with 2 variables
         catcounts = new int[maxDomSize];
         
         // For categorical splits
@@ -254,37 +216,17 @@ public class RegtreeFit {
         
         maxlocs = new int[Math.max(N, maxDomSize)-1];
         
-        period = null;
-        period_time = null;
-        N_all = null;
-		O_all = null;
-		C_all = null;
-		N_1 = null;
-		O_1 = null;
-		N_add = null;
-        if (hascens) {
-            period = new int[N];
-            period_time = new double[N+1];
-            N_all = new int[N];
-            O_all = new int[N];
-            C_all = new int[N];
-            N_1 = new int[N];
-            O_1 = new int[N];
-            N_add = new int[N+1];
-        } 
-        
-        ycum = new double[Math.max(N, maxDomSize)+1];
-        y_in = ycum;
-        c_in = variableValuesHere;
-        
+        ycum = new double[Math.max(N, maxDomSize)+1];        
         ycountcum = new int[Math.max(N, maxDomSize)+1];
-        numUptoCategory = ycountcum;
-        
+                
         // For passing data to children
         boolean[] yGoesLeft = new boolean[N];
         boolean[] primaryGoesLeft = new boolean[Math.max(numTheta, numX)];
         
-        double ystd = Utils.var(y);        
+        // For sorting
+        sorder = new int[Math.max(N, maxDomSize)];
+        
+        double ystd = Utils.var(y);
         
         //=== Start: pre-sort each variable
         // The entries of sortedTheta and sortedX are indices into allTheta/allX.
@@ -329,7 +271,8 @@ public class RegtreeFit {
         
         y_node[0] = index_into_dataIdxs_here;
         
-        if (N * Math.log10(N) < numTheta || numTheta == 0) {
+        if (N * Math.log10(N) < numTheta || numTheta == 0) { 
+        	// Use sorting instead of presorting
         	y_Theta[0] = null;
         } else {
         	ynodeTheta = new int[numTheta][];
@@ -345,11 +288,12 @@ public class RegtreeFit {
                 int idx = dataIdxs[dataIdx][0];
                 ynodeTheta[idx][--Thetacount[idx]] = i;
         	}
-        	y_Theta[0] = ynodeTheta;
         	Thetacount = null;
+        	y_Theta[0] = ynodeTheta;
         }
         
         if (N * Math.log10(N) < numX || numX == 0) {
+        	// Use sorting instead of presorting
         	y_X[0] = null;
         } else {
         	ynodeX = new int[numX][];
@@ -366,24 +310,19 @@ public class RegtreeFit {
 	            int idx = dataIdxs[index_into_dataIdxs_here[i]][1];
 	            ynodeX[idx][--Xcount[idx]] = i;
 	        }
-	        y_X[0] = ynodeX;
 	        Xcount = null;
+	        y_X[0] = ynodeX;
         }
         //=== End: initialize ynodeTheta and ynodeX for the root node.
-
-        
-        sorder = new int[Math.max(N, maxDomSize)];
-        nodesize[0] = N;
         
         //========== Gather data for building the tree (we only build the actual tree afterwards using that data). ==========
+        // This is the "meat" of the function
         int[] stack = new int[N]; // Stack for DFS
         stack[0] = 0;
         int stacktop = 0; // Top of the stack
         int numNodes = 1; // Number of nodes in the tree so far
         
-        
-        if (printDebug)
-        	System.out.println("Setup took " + (-currentTime + (currentTime = new Date().getTime())) + " milliseconds.");
+        if (printDebug) System.out.println("Setup took " + (-currentTime + (currentTime = new Date().getTime())) + " milliseconds.");
         
         while (stacktop >= 0) {
         	//== Get the data for this node.
@@ -399,7 +338,6 @@ public class RegtreeFit {
         	//== Compute some basic stats for this node.
             int Nnode = nodesize[tnode];
             if (Nnode == 0) throw new RuntimeException("ERROR! Nnode is 0 (split gave zero data points to this node!?)");
-            int NnodeUncens = 0;
             double ysum = 0, ysumOfSq = 0;
             double ymax = -1e13, ymin = 1e13;
             for (int i=0; i < Nnode; i++) {
@@ -409,8 +347,6 @@ public class RegtreeFit {
                 
                 if (y[idx] > ymax) ymax = y[idx];
                 if (y[idx] < ymin) ymin = y[idx];
-                
-                if (!cens[idx]) NnodeUncens++;
             }
             ybar = ysum / Nnode;
             double mincost = (Nnode == 1 ? 0 : (ysumOfSq - ysum*ysum/Nnode) / (Nnode-1));
@@ -419,13 +355,7 @@ public class RegtreeFit {
 
             cutvar[tnode] = 0; // this marks the current node as a leaf for now until we decide to split it
             
-            //System.out.println("in node " + tnode + " theta sort: " + (ynodeTheta == null ? "naive" : "pre") + ", x sort: " + (ynodeX == null ? "naive" : "pre"));
-            /*
-            System.out.print("In node " + tnode + " parent " + parent[tnode] + " size " + nodesize[tnode] + " y [");
-            for (int i=0; i < Nnode; i++) System.out.print(y[index_into_dataIdxs_here[i]] + " ");
-            System.out.println("]");//*/
-
-            if (impure && NnodeUncens >= splitMin) { // split only impure nodes with more than a threshold of uncensored values
+            if (impure && Nnode >= splitMin) { // split only impure nodes with more than a threshold of uncensored values
                 //=== Start: handle conditional parameters. 
                 int nvarsenabled = 0; // #variables that are active for sure given the variable instantiations up to the root 
                 if (condParents == null) {
@@ -458,69 +388,11 @@ public class RegtreeFit {
                                 if (!isenabled) break;
                             }
                         }
-                        if (isenabled) {
-                            randomPermutation[nvarsenabled++] = i;
-                        }
+                        if (isenabled) randomPermutation[nvarsenabled++] = i;
                     }
                 }
                 //=== End: handle conditional parameters
                 shuffle(randomPermutation, nvarsenabled);
-                
-                num_periods = 0;
-                if (NnodeUncens != Nnode) {
-                    // First, compute period for uncensored data. (Censored data with same y value could be before or after the first uncensored one in the ordering, thus we need 2 passes.)                                     
-                    Arrays.fill(period, 0, Nnode, 0);
-                    
-                    double last_time = -1e10;
-                    for (int i=0; i < Nnode; i++) {
-                        int idx = index_into_dataIdxs_here[i];
-                        if (!cens[idx]) {
-                            if (y[idx] > last_time + 1e-6) {
-                                num_periods++;
-                                period_time[num_periods] = y[idx];
-                                last_time = y[idx];
-                            }
-                            period[i] = num_periods;
-                        }
-                    }
-                    
-                    Arrays.fill(O_all, 0, num_periods, 0);
-                    Arrays.fill(C_all, 0, num_periods, 0);
-                    // Then, fill in period for censored data
-                    int curr_period = 0;
-                    double this_time = 0;
-                    for (int i=0; i < Nnode; i++) {
-                        int idx = index_into_dataIdxs_here[i];
-                        if (cens[idx]) {
-                            if (curr_period == num_periods) {
-                                this_time = 1e9;
-                            } else {
-                                this_time = period_time[curr_period+1];
-                            }
-                            while ( y[idx] > this_time - 1e-6 ) {
-                                curr_period++;
-                                if (curr_period == num_periods) {
-                                    this_time = 1e9;
-                                } else {
-                                    this_time = period_time[curr_period+1];
-                                }
-                            }
-                            period[i] = curr_period;
-                            if (curr_period > 0) {
-                                C_all[curr_period-1]++;
-                            }
-                        } else {
-                            O_all[period[i]-1]++;
-                        }
-                    }
-                    
-                    // Go through periods, and collect N.
-                    N_all[0] = Nnode;
-                    for (int p = 1; p < num_periods; p++) {
-                        N_all[p] = N_all[p-1] - O_all[p-1] - C_all[p-1];
-                    }
-                }
-                //=== END censoring stuff
                 
                 //=== Keep track of the best cut/var found.
                 int bestvar = -1;
@@ -557,11 +429,7 @@ public class RegtreeFit {
                         int domSize = catDomainSizes[nextvar];
 
                         // compute critval
-                        if (hascens) { // Censored Categorical
-                            critval = critval_cat_logrank(varIdx, is_X, allData, Nnode, index_into_dataIdxs_here, domSize);
-                        } else { // Uncensored Categorical
-                        	critval = critval_cat(varIdx, is_X, allData, Nnode, index_into_dataIdxs_here, domSize);
-                        }
+                        critval = critval_cat(varIdx, is_X, allData, Nnode, index_into_dataIdxs_here, domSize);
                         //=== Change best split if this one is best so far.
                         if (critval > bestcrit + 1e-10) {
                             bestcrit = critval;
@@ -579,19 +447,14 @@ public class RegtreeFit {
                     	// Get the values of y that we have in this node, in order corresponding to sorted variable values
                         int[] results = prepare_for_cont_critval(varIdx, is_X, numData, sortedData, allData, Nnode, index_into_dataIdxs_here, ynodeData, variableValuesHere);
                         if (results == null) continue;
+                        
                         int numUniqData = results[0];
                         int numUniqValues = results[1];
                         
                         // Compute critval
-                        if (hascens) { // Censored Continuous
-                            double[] result = critval_cont_logrank(numUniqValues, uniqueIdxs, index_into_dataIdxs_here, ynodeData, dataRowsHere, variableValuesHere);
-                            critval = result[0];
-                            cutval = result[1];
-                        } else { // Noncensored Continuous
-                        	double[] result = critval_cont(numUniqData, numUniqValues, uniqueIdxs, index_into_dataIdxs_here, ynodeData, dataRowsHere, variableValuesHere);
-                            critval = result[0];
-                            cutval = result[1];
-                        }
+                        double[] result = critval_cont(numUniqData, numUniqValues, uniqueIdxs, index_into_dataIdxs_here, ynodeData, dataRowsHere, variableValuesHere);
+                        critval = result[0];
+                        cutval = result[1];
                         //=== Change best split if this one is best so far.
                         if (critval > bestcrit + 1e-10) {
                             bestcrit = critval;
@@ -602,41 +465,54 @@ public class RegtreeFit {
                     if (critval == INVALID_CRITVAL) {
                         continue;
                     }
-                    /*
-                    System.out.print("var " + nextvar + " critval " + critval + (!is_nextvar_cat ? " cutval " + cutval : "") + " x [");
-                    for (int j=0; j < Nnode; j++) {
-                        int idx = index_into_dataIdxs_here[j];
-                        System.out.print(allData[dataIdxs[idx][is_X]][varIdx] + " ");
-                    }
-                    System.out.println(" ]");//*/
                     
                     if (i >= Math.max(1, (int)(ratioFeatures*nvarsenabled)) - 1 && bestcrit > -1e11) {
-                        //System.out.println("Breaking: i " + i + " num " + (Math.max(1, (int)((ratioFeatures*nvarsenabled)))-1) + " bestcrit " + bestcrit);
+                        // Once we've checked enough variables and found one that we can split on, we can stop
                         break;
                     }
                 }
-                //System.out.println("Bestvar " + bestvar + " critval " + bestcrit);
                 //=== Best split point has been found. Split this node using the best rule found.
                 if (bestvar != -1) {
+                    // Create primaryGoesLeft and yGoesLeft in order to create y_node, y_Theta, and y_X for children
                     int numPrimary;
                     int[][] ynodePrimary;
                     double[][] allPrimary;
+                    int[][][] y_Primary;
+                    
+                    int numSecondary;
+                    int[][] ynodeSecondary;
+                    int[][][] y_Secondary;
+                    
                     int is_X;
                     int varIdx;
                     if (bestvar < numThetavars) {
                         varIdx = bestvar;
-                        numPrimary = numTheta;         ynodePrimary = ynodeTheta;
+                        numPrimary = numTheta;         
+                        ynodePrimary = ynodeTheta;
                         allPrimary = allTheta;
+                        y_Primary = y_Theta;
+                        
+                        numSecondary = numX;
+                        ynodeSecondary = ynodeX;
+                        y_Secondary = y_X;
+                        
                         is_X = 0;
                     } else {
                         varIdx = bestvar - numThetavars;
-                        numPrimary = numX;             ynodePrimary = ynodeX;
+                        numPrimary = numX;             
+                        ynodePrimary = ynodeX;
                         allPrimary = allX;
+                        y_Primary = y_X;
+                        
+                        numSecondary = numTheta;
+                        ynodeSecondary = ynodeTheta;
+                        y_Secondary = y_Theta;
+                        
                         is_X = 1;
                     }
-                    
+
                     int nleft = 0, nright = 0;
-                    if (catDomainSizes[bestvar]!=0) { 
+                    if (catDomainSizes[bestvar]!=0) { // bestvar is categorical
                         cutvar[tnode] = -(bestvar+1); // negative indicates cat. var. split
                         cutpoint[tnode] = ncatsplit; // index into catsplit cell array. 0-indexed!!!
                         
@@ -650,30 +526,26 @@ public class RegtreeFit {
                         int[] missing_values_for_right = new int[compatibleValues.length];
                         
                         // 2: For each compatible but missing value choose a side u.a.r.
-                        // TODO: If compatibleValues and bestLeft/bestRight were all sorted, this can be faster by a lot
+                        for (int i=0; i < catDomainSizes[bestvar]; i++) dataRowsHere[i] = 0;
+                        for (int i=0; i < numBestLeft; i++) dataRowsHere[bestLeft[i]-1] = 1;
+                        for (int i=0; i < numBestRight; i++) dataRowsHere[bestRight[i]-1] = 1;
+
 						int num_missing_to_left = 0, num_missing_to_right = 0;
                         for (int i=0; i < compatibleValues.length; i++) {
                             int nextValue = compatibleValues[i];
-                            int j;
-                            for (j=0; j < numBestLeft; j++) {
-                                if (nextValue == bestLeft[j]) break;
-                            }
-                            if (j == numBestLeft) {
-                                for (j=0; j < numBestRight; j++) {
-                                    if (nextValue == bestRight[j]) break;
-                                }
-                                if (j == numBestRight) {
-                                    // Missing but compatible value: choose side u.a.r.
-                                    if (rand() % 2 == 0) {
-                                        missing_values_for_left[num_missing_to_left++] = nextValue;
-                                    } else {
-                                        missing_values_for_right[num_missing_to_right++] = nextValue;
-                                    }
+                            if (dataRowsHere[nextValue-1] == 0) {
+                                // Missing but compatible value: choose side u.a.r.
+                                if (rand() % 2 == 0) {
+                                    missing_values_for_left[num_missing_to_left++] = nextValue;
+                                } else {
+                                    missing_values_for_right[num_missing_to_right++] = nextValue;
                                 }
                             }
                         }
                         
-                        // 3: Store the information                        
+                        // 3: Store the information
+                        // Here we are reusing leftside to say whether a given value goes left or right. 
+                        // Since we know all y values will be in compatibleValues, we do not need to worry about clearing leftside
 						catsplit[ncatsplit] = new int[num_missing_to_left + numBestLeft];
                         for (int i=0; i<num_missing_to_left; i++) {
                             int nextval = missing_values_for_left[i];
@@ -682,7 +554,7 @@ public class RegtreeFit {
                         }
 						for (int i=0; i<numBestLeft; i++) {
                             int nextval = bestLeft[i];
-                            leftside[nextval-1] = 1; // because catsplit is 1-indexed
+                            leftside[nextval-1] = 1; // because nextval is 1-indexed
                             catsplit[ncatsplit][num_missing_to_left+i] = nextval;
                         }
 						Arrays.sort(catsplit[ncatsplit]);
@@ -690,7 +562,7 @@ public class RegtreeFit {
                         catsplit[ncatsplit+N] = new int[num_missing_to_right + numBestRight];
                         for (int i=0; i<num_missing_to_right; i++) {
                             int nextval = missing_values_for_right[i];
-                            leftside[nextval-1] = 0; // because catsplit is 1-indexed
+                            leftside[nextval-1] = 0; // because nextval is 1-indexed
                             catsplit[ncatsplit+N][i] = nextval;
                         }
 						for (int i=0; i<numBestRight; i++) {
@@ -702,24 +574,20 @@ public class RegtreeFit {
 						ncatsplit++;
                         
                         if (ynodePrimary == null) {
+                            // This node doesn't have presorting, so we need to get values from allPrimary
                             for (int i=0; i < Nnode; i++) {
                                 int idx = index_into_dataIdxs_here[i];
                                 double xVal = allPrimary[dataIdxs[idx][is_X]][varIdx];
-                                boolean onleft = false;
-                                for (int j=0; j < numBestLeft; j++) {
-                                    if ((int)(xVal+0.5) == bestLeft[j]) {
-                                        onleft = true;
-                                        break;
-                                    }
-                                }
-                                if (onleft) {
+                                if (leftside[(int)(xVal-0.5)] == 1) {
                                     nleft++;
+                                    yGoesLeft[i] = true;
                                 } else {
                                     nright++;
+                                    yGoesLeft[i] = false;
                                 }
-                                yGoesLeft[i] = onleft;
                             }
                         } else {
+                            // Use the presorting to get values for primaryGoesLeft to split allPrimary into 2 halves
                             for (int i=0; i < numPrimary; i++) {
                                 if (leftside[(int)(allPrimary[i][varIdx]-0.5)] == 1) {
                                     primaryGoesLeft[i] = true;
@@ -740,11 +608,12 @@ public class RegtreeFit {
                                 }
                             }
                         }
-                    } else { 
+                    } else { // bestvar is continuous
                         cutvar[tnode] = bestvar + 1; // splitting on cont. var
                         cutpoint[tnode] = bestcut;
                         
                         if (ynodePrimary == null) {
+                            // This node doesn't have presorting, so we need to get values from allPrimary
                             for (int i=0; i < Nnode; i++) {
                                 int idx = index_into_dataIdxs_here[i];
                                 double xVal = allPrimary[dataIdxs[idx][is_X]][varIdx];
@@ -758,6 +627,7 @@ public class RegtreeFit {
                             }
                         } else {
                             for (int i=0; i < numPrimary; i++) {
+                                // Use the presorting to get values for primaryGoesLeft to split allPrimary into 2 halves
                                 if (allPrimary[i][varIdx] <= bestcut) {
                                     primaryGoesLeft[i] = true;
                                     if (ynodePrimary[i] != null) {
@@ -783,21 +653,6 @@ public class RegtreeFit {
                     }
                     
                     // Create y_node, y_Theta and y_X for children.
-                    int numSecondary;
-                    int[][] ynodeSecondary;
-                    int[][][] y_Primary, y_Secondary;
-                    if (bestvar < numThetavars) {
-                        numSecondary = numX;
-                        ynodeSecondary = ynodeX;
-                        y_Primary = y_Theta;
-                        y_Secondary = y_X;
-                    } else {
-                        numSecondary = numTheta;
-                        ynodeSecondary = ynodeTheta;
-                        y_Primary = y_X;
-                        y_Secondary = y_Theta;
-                    }
-                    
                     int[] ynodeLeft = new int[nleft];
                     int[] ynodeRight = new int[nright];
                     for (int i=0, leftCounter=0, rightCounter=0; i < Nnode; i++) {
@@ -829,13 +684,15 @@ public class RegtreeFit {
 		                            }
 	                        	}
 	                        }
-	                        else if (!naiveSortPrimaryRight) {
-	                            yPrimaryRight[i] = ynodePrimary[i];
-	                            if (yPrimaryRight[i] != null) {
-	                                for (int j=0; j < yPrimaryRight[i].length; j++) {
-	                                    yPrimaryRight[i][j] = index_into_dataIdxs_here[yPrimaryRight[i][j]];
-	                                }
-	                            }
+	                        else {
+                                if (!naiveSortPrimaryRight) {
+                                    yPrimaryRight[i] = ynodePrimary[i];
+                                    if (yPrimaryRight[i] != null) {
+                                        for (int j=0; j < yPrimaryRight[i].length; j++) {
+                                            yPrimaryRight[i][j] = index_into_dataIdxs_here[yPrimaryRight[i][j]];
+                                        }
+                                    }
+                                }
 	                        }
 	                    }
                     }
@@ -844,7 +701,7 @@ public class RegtreeFit {
                     
                     boolean naiveSortSecondaryLeft = (ynodeSecondary == null || (nleft * Math.log10(nleft) < numSecondary));
                     boolean naiveSortSecondaryRight = (ynodeSecondary == null || (nright * Math.log10(nright) < numSecondary));
-
+                    
                     int[][] ySecondaryLeft = naiveSortSecondaryLeft ? null : new int[numSecondary][];
                     int[][] ySecondaryRight = naiveSortSecondaryRight ? null : new int[numSecondary][];
                     if (!naiveSortSecondaryLeft || !naiveSortSecondaryRight) {
@@ -898,15 +755,14 @@ public class RegtreeFit {
                     numNodes += 2; 
                 }
             }
-            // Leaf => store results falling here (don't store them everywhere to avoid O(N^2) storage)
-            // Save *runtimes*, not losses. 
+            
             if (cutvar[tnode] == 0) {
+                // Leaf => store results falling here (don't store them everywhere to avoid O(N^2) storage)
+                // Save *runtimes*, not losses. 
                 ysub[tnode] = new double[Nnode];
-                censsub[tnode] = new boolean[Nnode];
                 for (int i=0; i < Nnode; i++) {
                     int idx = index_into_dataIdxs_here[i];
                     ysub[tnode][i] = y[idx];
-                    censsub[tnode][i] = cens[idx];
                 }
             }
             if (printDebug) {
@@ -943,21 +799,28 @@ public class RegtreeFit {
             tree.catsplit[cs_idx] = tmp;
 	   }
         
-        for (int i=0; i < numNodes; i++) {
+       for (int i=0; i < numNodes; i++) {
             tree.children[i][0] = leftchildren[i];
             tree.children[i][1] = rightchildren[i];
             
-            int Nnode = cutvar[i] == 0 ? nodesize[i] : 0;
+            int Nnode = leftchildren[i] == 0 ? nodesize[i] : 0;            
             if (Nnode != 0) {
                 if (params.storeResponses) {
                     tree.ysub[i] = new double[Nnode];
-                    tree.is_censored[i] = new boolean[Nnode]; 
-                    System.arraycopy(ysub[i], 0, tree.ysub[i], 0, Nnode);
-                    System.arraycopy(censsub[i], 0, tree.is_censored[i], 0, Nnode);
+                    if (tree.logModel>0) {
+                        for(int n=0; n<Nnode; n++){
+                            tree.ysub[i][n] = Math.pow(10, ysub[i][n]);
+                        }
+                    } else {
+                        System.arraycopy(ysub[i], 0, tree.ysub[i], 0, Nnode);
+                    }
                 } else {
                     double sum = 0, sumOfSq = 0;
                     for (int j=0; j < Nnode; j++) {
                         double next = ysub[i][j];
+                        if (tree.logModel > 0){
+                            next = Math.pow(10, next);
+                        }
                         sum += next;
                         sumOfSq += next * next;
                     }
@@ -968,17 +831,11 @@ public class RegtreeFit {
         }
         tree.recalculateStats();
         
-        
         // Free up static fields for GC
-        rows_km = null;
-        km_mean = null;
-        numUptoCategory = null;
-        sortedByCategory = null;
         sorder = null;
         maxlocs = null;
         RegtreeFit.dataIdxs = null;
         RegtreeFit.y = null;
-        RegtreeFit.cens = null;
         
         catmeans = null;
         catcounts = null;
@@ -990,16 +847,6 @@ public class RegtreeFit {
         leftside = null;
         rightside = null;
         
-        period = null;
-    	period_time = null;
-    	N_all = null;
-    	O_all = null;
-    	C_all = null;
-    	N_1 = null;
-    	O_1 = null;
-    	N_add = null;
-    	
-    	
     	if (printDebug)
     		System.out.println("Building the tree took a total of " + (new Date().getTime() - startTime) + " milliseconds.");   	
         return tree;
@@ -1096,101 +943,7 @@ public class RegtreeFit {
             prev = variableValuesHere[maxloc];
             next = variableValuesHere[maxloc+1];
         }
-        
-        //System.out.println("*** u: " + u + " prev: " + prev + " next: " + next + " sort: " + (ynodeData == null ? "naive" : "pre"));
-        
-        double cutval = 0;
-        if (next - prev < 1.9*1e-6) {
-            cutval = (next + prev) / 2;
-        } else {
-            cutval = (1-u)*(prev + 1e-6) + u*(next-1e-6);
-            if (cutval < prev + 1e-8 || cutval > next - 1e-8) {
-                throw new RuntimeException("random splitpoint has to lie in between the upper and lower limit");
-            }
-        }
-        return new double[]{critval, cutval};
-	}
-	private static double[] critval_cont_logrank(int numUniqValues, int[] uniqueIdxs, int[] index_into_dataIdxs_here, int[][] ynodeData, int[] dataRowsHere, double[] variableValuesHere) {
-    	Arrays.fill(N_1, 0, num_periods, 0);
-        Arrays.fill(O_1, 0, num_periods, 0);
-        
-        //=== For adding one group at a time, compute resulting logrank statistic.
-        double critval = INVALID_CRITVAL;
-        int numlocs_with_max_crit = 0;
-        for (int j=1; j < numUniqValues; j++) {
-            int low = uniqueIdxs[j-1];
-            int high = uniqueIdxs[j];
-            
-            int maxperiod = -1;
-            if (ynodeData == null) { // did Nnode log Nnode sorting
-                for (int k=low; k < high; k++) {
-                    maxperiod = Math.max(maxperiod, period[sorder[k]]);
-                }
-            } else {
-                for (int k=low; k < high; k++) {
-                    int[] ynodeIdxsHere = ynodeData[dataRowsHere[k]];
-                    for (int l : ynodeIdxsHere) {
-                        maxperiod = Math.max(maxperiod, period[l]);
-                    }
-                }
-            }
-            Arrays.fill(N_add, 0, maxperiod, 0);
-            
-            if (ynodeData == null) {
-                for (int k = low; k < high; k++) {
-                    int idx = sorder[k];
-                    int p = period[idx]-1;
-                    if (p >= 0) {
-                        if (!cens[index_into_dataIdxs_here[idx]]) {
-                            O_1[p]++;
-                        }
-                        N_add[p]++;
-                    }
-                }
-            } else {
-                for (int k = low; k < high; k++) {
-                    int[] ynodeIdxsHere = ynodeData[dataRowsHere[k]];
-                    for (int l : ynodeIdxsHere) {
-                        int p = period[l]-1;
-                        if (p >= 0) {
-                            if (!cens[index_into_dataIdxs_here[l]]) {
-                                O_1[p]++;
-                            }
-                            N_add[p]++;
-                        }
-                    }
-                }
-            }
-            
-            int N_cumul = 0;
-            for (int p = maxperiod-1; p >= 0; p--) {
-                N_cumul += N_add[p];
-                N_1[p] += N_cumul;
-            }
-            
-            double logrank = Math.abs(logrank_statistic(num_periods, N_all, O_all, N_1, O_1));
-            if (logrank > critval - 1e-10) {
-                if (logrank > critval + 1e-10) {
-                    critval = logrank;
-                    numlocs_with_max_crit = 0;
-                }
-                maxlocs[numlocs_with_max_crit++] = j-1;
-            }
-        }
-        int maxloc = maxlocs[rand() % numlocs_with_max_crit];
-
-        //=== Get cutval.
-        double u = rand() * 1.0 / RAND_MAX;
-        // if points are close the just take average. If points are farther sample randomly from lerp
-        double prev, next;
-        if (ynodeData == null) {
-            prev = variableValuesHere[sorder[maxloc]];
-            next = variableValuesHere[sorder[maxloc+1]];
-        } else {
-            prev = variableValuesHere[maxloc];
-            next = variableValuesHere[maxloc+1];
-        }
-
+                
         double cutval = 0;
         if (next - prev < 1.9*1e-6) {
             cutval = (next + prev) / 2;
@@ -1259,202 +1012,13 @@ public class RegtreeFit {
         numleft = maxloc;
         numright = numtotal - numleft;
         for (int j=0; j < numleft; j++) {
-            leftside[j] = sorder[j] + 1;
+            leftside[j] = sorder[j] + 1; // leftside and rightside need to be 1-indexed
         }
         for (int j=0; j < numright; j++) {
             rightside[j] = sorder[j+numleft] + 1;
         }
 		return critval;
 	}
-	private static double critval_cat_logrank(int varIdx, int var_is_X, double[][] allData, int Nnode, int[] index_into_dataIdxs_here, int domSize) {
-		double critval = INVALID_CRITVAL;
-		
-		// Get Kaplan-Meier estimates of the mean for each category       
-        Arrays.fill(numUptoCategory, 0, domSize+1, 0); 
-        for (int j=0; j < Nnode; j++) {
-            int idx = index_into_dataIdxs_here[j];
-            int category = (int)(allData[dataIdxs[idx][var_is_X]][varIdx] - 0.5);
-            numUptoCategory[category]++;
-        }
-        
-        for (int j=1; j <= domSize; j++) {
-            numUptoCategory[j] += numUptoCategory[j-1];
-        }
-        // index i of numUptoCategory contains the number of data points with category numbers <= i
-        
-        for (int j=0; j < Nnode; j++) {
-        	//=== Sort all data points in this node by category and place result in dataRowsHere (counting sort).
-            int idx = index_into_dataIdxs_here[j];
-            int category = (int)(allData[dataIdxs[idx][var_is_X]][varIdx] - 0.5);
-            sortedByCategory[--numUptoCategory[category]] = j;
-        }
-        int[] categoryStartIdx = numUptoCategory; // the array now contains the start idx of each category.
-        int numtotal = 0;
-        for (int j=0; j < domSize; j++) {
-            int low = categoryStartIdx[j];
-            int high = categoryStartIdx[j+1];
-            
-            int numUncens = 0, numCens = 0;
-            for (int k=high-1; k >= low; k--) { // Iterate in reverse order so c_in and y_in are sorted
-                int idx = index_into_dataIdxs_here[sortedByCategory[k]];
-                if (cens[idx]) {
-                    c_in[numCens++] = y[idx];
-                } else {
-                    y_in[numUncens++] = y[idx];
-                }
-            }
-            if (high-low == 0) {
-                km_mean[j] = Double.POSITIVE_INFINITY;
-            } else {
-                km_mean[j] = kaplan_meier_mean(numUncens, numCens, y_in, c_in, kappa);
-                numtotal++;
-            }
-        }
-        if (numtotal <= 1) return critval;
-        
-        rankSort(km_mean, domSize, sorder);
-        
-        Arrays.fill(N_1, 0, num_periods, 0);
-        Arrays.fill(O_1, 0, num_periods, 0);
-        //=== For adding one group at a time, compute resulting logrank statistic.
-        int numlocs_with_max_crit = 0;
-        for (int j=1; j < numtotal; j++) {
-            int category = sorder[j-1];
-            int low = categoryStartIdx[category];
-            int high = categoryStartIdx[category+1];
-            
-            int maxperiod = -1;
-            for (int k=low; k < high; k++) {
-                int idx = sortedByCategory[k];
-                maxperiod = Math.max(maxperiod, period[idx]);
-            }
-            Arrays.fill(N_add, 0, maxperiod, 0);
-            
-            for (int k = low; k < high; k++) {
-                int idx = sortedByCategory[k];
-                int p = period[idx]-1;
-                if (p >= 0) {
-                    if (!cens[index_into_dataIdxs_here[idx]]) {
-                        O_1[p]++;
-                    }
-                    N_add[p]++;
-                }
-            }
-            
-            int N_cumul = 0;
-            for (int p = maxperiod-1; p >= 0; p--) {
-                N_cumul += N_add[p];
-                N_1[p] += N_cumul;
-            }
-            
-            double logrank = Math.abs(logrank_statistic(num_periods, N_all, O_all, N_1, O_1));
-            
-            if (logrank > critval - 1e-10) {
-                if (logrank > critval + 1e-10) {
-                    critval = logrank;
-                    numlocs_with_max_crit = 0;
-                }
-                maxlocs[numlocs_with_max_crit++] = j;
-            }
-        }
-        
-        int maxloc = maxlocs[rand() % numlocs_with_max_crit];
-        
-        numleft = maxloc;
-        numright = numtotal - numleft;
-        for (int j=0; j < numleft; j++) {
-            leftside[j] = sorder[j] + 1;
-        }
-        for (int j=0; j < numright; j++) {
-            rightside[j] = sorder[j+numleft] + 1;
-        }
-        return critval;
-	}
-
-	// NOTE: the y_km and c_km array you pass in WILL be modified!
-    // Assumes y_km and c_km are sorted already.
-    private static int[] rows_km;
-    private static double kaplan_meier_mean(int numUncens, int numCens, double[] y_km, double[] c_km, double upper_bound) {
-        int N_i = numUncens + numCens;
-        if (N_i == 0) {
-            throw new RuntimeException("Kaplan-Meier estimator undefined for empty population.");
-        }
-        double km_mean = 0;
-        
-        if (numUncens == 0) {
-            km_mean = upper_bound;
-        } else {
-            int num_rows = 0;
-            for (int i=0; i < numUncens-1; i++) {
-                if (y_km[i] + 1e-10 < y_km[i+1]) {
-                    rows_km[num_rows++] = i;
-                }
-            }
-            rows_km[num_rows++] = numUncens-1;
-            
-            double prod = 1;
-            int c_idx = 0;
-            for (int i=0; i < num_rows; i++) {
-                double t_i = y_km[rows_km[i]];
-                while(c_idx < numCens && c_km[c_idx] < t_i) {
-                    N_i--;
-                    c_idx++;
-                }
-                int d_i;
-                if (i==0) {
-                    d_i = rows_km[i]+1;
-                    km_mean += prod * y_km[rows_km[i]];
-                } else {
-                    d_i = rows_km[i] - rows_km[i-1];
-                    km_mean += prod * (y_km[rows_km[i]] - y_km[rows_km[i-1]]);
-                }
-                prod *= (N_i-d_i)*1.0/N_i;
-                N_i -= d_i;
-            }
-            /* Deal with remaining censored values (if the highest value is
-             * uncensored, then prod=0, so nothing happens then)
-             */
-            km_mean += prod * (upper_bound-y_km[numUncens-1])/2;
-        }
-        return km_mean;
-    }
-    
-    private static double logrank_statistic(int num_periods, int[] N, int[] O, int[] N_1, int[] O_1) {
-        /* Compute logrank statistic for the specified "numbers at risk" (N),
-         * observed events (O), "numbers at risk" in group 1 (N_1), and observed
-         * events in group 1 (O_1)
-         *
-         * If N(i) <= 1, we don't include it in the sum (undefined variance, 0/0)
-         */
-
-        double sum_V=0, numerator=0;
-        for (int p=0; p<num_periods; p++) {
-            int Np = N[p];
-            if (Np > 1) {
-                int N1p = N_1[p];
-                double E = O[p] * ((N1p+0.0)/Np);
-                double V = E * (1 - ((N1p+0.0)/Np)) * (Np-O[p]) / (Np-1.0);
-                sum_V += V;
-                numerator += (O_1[p]-E);
-            }
-        }
-
-        double denominator = Math.sqrt(sum_V);
-        
-        if (Math.abs(denominator) < 1e-6) {
-            if (Math.abs(numerator) < 1e-6) {
-                return 0;
-            } else {
-                throw new RuntimeException("Division by zero in function logrank_statistic.");
-            }
-        }
-        
-        return numerator/denominator;
-    }
-    
-    
-    
-    
     
     //=== Get the values of variable var's domain that it could potentially take at this node (the values that are *compatible* with the splits going to this node)
     private static int[] getCompatibleValues(int currnode, int var, int N, int[] parent, int[] cutvar, double[] cutpoint, int[] leftchildren, int[] rightchildren, int[][] catsplit, int[] catDomainSizes) {
@@ -1521,25 +1085,5 @@ public class RegtreeFit {
             while (i < max && input[sorder[i]] == pivot) i++;
             min = i; // dp_quick(input, sorder, i, max);
         }
-    }
-    
-    public static void serializeDataForDebug(double[][] allTheta, double[][] allX, int[][] dataIdxs, double[] y, boolean[] cens, RegtreeBuildParams params, String filename) {   
-    	DebugTreeBuildInputs t = new DebugTreeBuildInputs();
-    	t.allTheta = allTheta;
-    	t.allX = allX;
-    	t.dataIdxs = dataIdxs;
-    	t.y = y;
-    	t.cens = cens;
-    	t.params = params;
-
-	    try {
-			FileOutputStream fileOut = new FileOutputStream(filename + ".ser");
-			ObjectOutputStream out = new ObjectOutputStream(fileOut);
-			out.writeObject(t);
-			out.close();
-			fileOut.close();
-		} catch (IOException i) {
-			i.printStackTrace();
-		}
     }
 }
