@@ -24,6 +24,6 @@ public class RegtreeFitTester {
 	        return;
 	    }
 	    
-	    RegtreeFit.fit(t.allTheta, t.allX, t.dataIdxs, t.y, t.cens, t.params);
+	  //  RegtreeFit.fit(t.allTheta, t.allX, t.dataIdxs, t.y, t.cens, t.params);
 	}
 }

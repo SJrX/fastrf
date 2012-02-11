@@ -14,6 +14,7 @@ import java.util.Arrays;
  * @param storeResponses whether to store the responses themselves in the leaves or just to store some statistic (sum, sumofsquares, and leaf size)
  * @param seed -1 means don't use a seed (i.e. create a new Random but don't call setSeed). 
  * @param random will be used instead of seed if it's not null.
+ * @param minVariance - Minimum Variance value that will ever be returned on apply call
  */
 public class RegtreeBuildParams implements java.io.Serializable {    
 	private static final long serialVersionUID = -6803645785543626390L;
@@ -21,6 +22,7 @@ public class RegtreeBuildParams implements java.io.Serializable {
     public int[][] condParents = null;
     public int[][][] condParentVals = null;
     
+    public double minVariance;
     public String toString()
     {
         try{
@@ -36,7 +38,7 @@ public class RegtreeBuildParams implements java.io.Serializable {
         sb.append(Arrays.deepToString(condParentVals));
         sb.append("\nSplitMin:" + splitMin);
         sb.append("\nRatioFeatures:" + ratioFeatures);
-        sb.append("\nCutOffPenaltyFactor:" + cutoffPenaltyFactor);
+        //sb.append("\nCutOffPenaltyFactor:" + cutoffPenaltyFactor);
         sb.append("\nLogModel:" + logModel);
         sb.append("\nStoreResponses:" + storeResponses);
        

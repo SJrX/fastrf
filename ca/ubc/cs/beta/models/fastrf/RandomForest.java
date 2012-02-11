@@ -9,14 +9,20 @@ public class RandomForest implements java.io.Serializable {
     public int numTrees;
     public Regtree[] Trees;
     public int logModel;
+    public static final double MIN_VARIANCE_RESULT = -1 * Math.pow(10,-6);
+    public double minVariance;
+
+	private RegtreeBuildParams buildParams;
     
-    public RandomForest(int numtrees, int logModel) {
+    public RandomForest(int numtrees, RegtreeBuildParams buildParams) {
         if (numtrees <= 0) {
             throw new RuntimeException("Invalid number of regression trees in forest: " + numtrees);
         }
-        this.logModel = logModel;
+        this.logModel = buildParams.logModel;
         numTrees = numtrees;
         Trees = new Regtree[numtrees];
+        this.minVariance = buildParams.minVariance;
+        this.buildParams = buildParams;
     }
     
     /**
@@ -46,6 +52,8 @@ public class RandomForest implements java.io.Serializable {
             }
         }        
         
+        
+        
         int N = y.length;
         
         // Do bootstrap sampling for data for each tree.
@@ -72,7 +80,7 @@ public class RandomForest implements java.io.Serializable {
             throw new RuntimeException("length(dataIdxs) must be equal to numtrees.");
         }
         
-        RandomForest rf = new RandomForest(numTrees, params.logModel);
+        RandomForest rf = new RandomForest(numTrees, params);
         for (int i = 0; i < numTrees; i++) {
             int N = dataIdxs[i].length;
             int[][] this_theta_inst_idxs = new int[N][];
@@ -124,6 +132,16 @@ public class RandomForest implements java.io.Serializable {
             retn[i][1] /= forest.numTrees;
             retn[i][1] -= retn[i][0]*retn[i][0];
             retn[i][1] = retn[i][1] * ((forest.numTrees+0.0)/Math.max(1, forest.numTrees-1));
+            
+            
+           
+            if(retn[i][1] < MIN_VARIANCE_RESULT)
+            {
+            	System.err.println("[WARN]: Variance is less than " + MIN_VARIANCE_RESULT + " > " + retn[i][1]);
+            	assert(retn[i][1] > MIN_VARIANCE_RESULT); //Assert negative variance only comes from numerical issues (and they shouldn't make it too small)
+            }
+            retn[i][1] = Math.max(forest.minVariance, retn[i][1]);
+            
         }
         return retn;
     }
@@ -162,6 +180,13 @@ public class RandomForest implements java.io.Serializable {
             retn[i][1] /= nTrees;
 			retn[i][1] -= retn[i][0]*retn[i][0];
             retn[i][1] = retn[i][1] * ((forest.numTrees+0.0)/Math.max(1, forest.numTrees-1));
+            
+            if(retn[i][1] < MIN_VARIANCE_RESULT) 
+            {
+            	System.err.println("[WARN]: Variance is less than " + MIN_VARIANCE_RESULT + " > " + retn[i][1]);
+            	assert(retn[i][1] > MIN_VARIANCE_RESULT); //Assert negative variance only comes from numerical issues (and they shouldn't make it too small)
+            }
+            retn[i][1] = Math.max(forest.minVariance, retn[i][1]);
         }
         return retn;
     }
@@ -171,7 +196,7 @@ public class RandomForest implements java.io.Serializable {
      * @see RegtreeFwd.preprocess_inst_splits
      */
     public static RandomForest preprocessForest(RandomForest forest, double[][] X) {
-        RandomForest prepared = new RandomForest(forest.numTrees, forest.logModel);
+        RandomForest prepared = new RandomForest(forest.numTrees,forest.buildParams);
         for (int i=0; i < forest.numTrees; i++) {
             prepared.Trees[i] = RegtreeFwd.preprocess_inst_splits(forest.Trees[i], X);
         }
