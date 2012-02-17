@@ -3,9 +3,9 @@ package ca.ubc.cs.beta.models.fastrf.utils;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import ca.ubc.cs.beta.models.fastrf.*;
 
 public class RegtreeFitTester {
+	
 	public static void main(String [] args) {
 		 DebugTreeBuildInputs t = null;
 	     try {

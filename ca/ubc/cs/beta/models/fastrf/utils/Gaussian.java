@@ -1,6 +1,4 @@
 package ca.ubc.cs.beta.models.fastrf.utils;
-
-import java.util.*;
 /**
  * From http://introcs.cs.princeton.edu/java/21function/Gaussian.java.html
  */

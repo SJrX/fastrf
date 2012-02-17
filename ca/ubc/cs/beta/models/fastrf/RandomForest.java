@@ -1,7 +1,6 @@
 package ca.ubc.cs.beta.models.fastrf;
 
 import java.util.*;
-import ca.ubc.cs.beta.models.fastrf.utils.Utils;
 
 public class RandomForest implements java.io.Serializable {
     private static final long serialVersionUID = 5204746081208095705L;
@@ -120,11 +119,14 @@ public class RandomForest implements java.io.Serializable {
             int[] result = RegtreeFwd.fwd(forest.Trees[i], X);
             for (int j=0; j < X.length; j++) {
 				double pred = forest.Trees[i].nodepred[result[j]];
+				double var = forest.Trees[i].nodevar[result[j]];
+				/*
                 if (forest.logModel>0) {
                     pred = Math.log10(pred);
-                }
+                    System.out.println("Variance for Tree[  " + i + "] is " + var);
+                }*/
                 retn[j][0] += pred;
-                retn[j][1] += forest.Trees[i].nodevar[result[j]]+pred*pred;
+                retn[j][1] += var+pred*pred;
             }
         }
         for (int i=0; i < X.length; i++) {
@@ -134,15 +136,34 @@ public class RandomForest implements java.io.Serializable {
             retn[i][1] = retn[i][1] * ((forest.numTrees+0.0)/Math.max(1, forest.numTrees-1));
             
             
-           
+            /**
+             * Take mean and variance in non-log space, transform them into ln space, then Linearly Transform them to log-10 space. 
+             * Get the parameters of the log normal distribution, with that mean and variance (in non-log space).
+             */
+            double test_mu_n = retn[i][0];
+            double test_var_n = retn[i][1];
+            
+            double var_ln = Math.log(test_var_n/(test_mu_n*test_mu_n) + 1);
+            double	mu_ln = Math.log(test_mu_n) - var_ln/2;
+            
+            double var_l10 = var_ln / Math.log(10) / Math.log(10);
+            double mu_l10 = mu_ln / Math.log(10); 
+            
+            retn[i][0] = mu_l10;
+            retn[i][1] = var_l10;
+            
             if(retn[i][1] < MIN_VARIANCE_RESULT)
             {
             	System.err.println("[WARN]: Variance is less than " + MIN_VARIANCE_RESULT + " > " + retn[i][1]);
             	assert(retn[i][1] > MIN_VARIANCE_RESULT); //Assert negative variance only comes from numerical issues (and they shouldn't make it too small)
             }
             retn[i][1] = Math.max(forest.minVariance, retn[i][1]);
+        
+            
             
         }
+        
+        
         return retn;
     }
     

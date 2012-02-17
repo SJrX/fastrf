@@ -6,7 +6,10 @@ import ca.ubc.cs.beta.models.fastrf.utils.*;
 public class RegtreeFit {
     
     private static Random r;
-    private static long seed;
+    
+    //Not sure why we need this field
+    @SuppressWarnings("unused")
+	private static long seed;
     //*
     private static final int RAND_MAX = Integer.MAX_VALUE - 1;
     private static int rand() {

@@ -1,6 +1,5 @@
 package ca.ubc.cs.beta.models.fastrf;
 
-import java.util.*;
 import ca.ubc.cs.beta.models.fastrf.utils.Utils;
 
 public class Regtree implements java.io.Serializable {    
