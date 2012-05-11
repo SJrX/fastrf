@@ -2,7 +2,7 @@ package ca.ubc.cs.beta.models.fastrf;
 
 import java.util.*;
 
-public class RegtreeFwd {
+public strictfp class RegtreeFwd {
     /**
      * Propogates data points down the regtree and returns a 1*X.length vector of node #s
      * specifying which node each data point falls into.

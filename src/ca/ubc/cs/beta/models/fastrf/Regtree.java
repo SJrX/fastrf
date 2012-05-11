@@ -1,8 +1,11 @@
 package ca.ubc.cs.beta.models.fastrf;
 
-import ca.ubc.cs.beta.models.fastrf.utils.Utils;
+import java.util.Arrays;
 
-public class Regtree implements java.io.Serializable {    
+import ca.ubc.cs.beta.models.fastrf.utils.Utils;
+import static ca.ubc.cs.beta.models.fastrf.utils.Hash.*;
+
+public strictfp class Regtree implements java.io.Serializable {    
     private static final long serialVersionUID = -7861532246973394125L;
     
     public int numNodes;
@@ -33,6 +36,121 @@ public class Regtree implements java.io.Serializable {
         this.logModel = logModel;
         preprocessed = false;
     }
+    
+    
+    public boolean equals(Object o)
+    {
+    	if(o instanceof Regtree)
+    	{
+    		Regtree rt = (Regtree) o;
+    		if (npred != rt.npred) return false;
+    		if (resultsStoredInLeaves != rt.resultsStoredInLeaves) return false;
+    		if (preprocessed != rt.preprocessed) return false;
+    		if (logModel != rt.logModel) return false;
+    		
+    		if (!Arrays.equals(var,rt.var)) return false;
+    		if (!Arrays.equals(cut,rt.cut)) return false;
+    		
+    		if (!Arrays.deepEquals(catsplit,rt.catsplit)) return false;
+    		if (!Arrays.deepEquals(ysub,rt.ysub)) return false;
+    		if (!Arrays.deepEquals(children,rt.children)) return false;
+    		
+    		if (!Arrays.equals(parent,rt.parent)) return false;
+    		
+    		
+    		
+    		if (!Arrays.equals(nodesize,rt.nodesize)) return false;
+    		
+    		
+
+    		if (!Arrays.equals(nodepred,rt.nodepred)) return false;
+    		if (!Arrays.equals(nodevar,rt.nodevar)) return false;
+
+    		
+
+    		
+    		if (!Arrays.equals(weightedpred,rt.weightedpred)) return false;
+    		if (!Arrays.equals(weightedvar,rt.weightedvar)) return false;
+    		if (!Arrays.equals(weights,rt.weights)) return false;
+
+    		return true;
+
+    		
+    	}
+    	return false;
+    	
+    }
+    
+    
+    
+    public int hashCode()
+    {
+    	System.out.println("=======");
+    	
+    	int hash = 0;
+    	
+    	hash = hash(node) + 31*hash;
+    	System.out.println("HASH:"+hash(node));
+    	Arrays.toString(node);
+    	
+    	hash = hash(parent) + 31*hash;
+    	System.out.println("HASH:"+hash(parent));
+    	Arrays.toString(parent);
+    	
+    	hash = hash(var) + 31*hash;
+    	System.out.println("HASH:"+hash(var));
+    	
+    	
+    	
+    	hash = hash(cut) + 31*hash;
+    	System.out.println("HASH:"+hash(cut));
+    	
+    	hash = hash(nodesize) + 31*hash;
+    	System.out.println("HASH:"+hash(nodesize));
+    	
+    	hash = npred + 31*hash;
+    	System.out.println("HASH:"+npred);
+    	
+    	hash = hash(children) + 31*hash;
+    	System.out.println("HASH:"+hash(children));
+    	
+    	hash = hash(catsplit) + 31*hash;
+    	System.out.println("HASH:"+hash(catsplit));
+    	
+    	hash = hash(ysub) + 31*hash;
+    	System.out.println("HASH:"+hash(ysub));
+    	
+    	
+    	
+    	hash = hash(nodepred) + 31*hash;
+    	System.out.println("HASH:"+hash(nodepred));
+    	
+    	hash = hash(nodevar) + 31*hash;
+    	System.out.println("HASH:"+hash(nodevar));
+    	
+    	hash = (resultsStoredInLeaves?1:0) + 31*hash;
+    	System.out.println("HASH:"+resultsStoredInLeaves);
+    	
+    	hash = preprocessed?1:0 + 31*hash;
+    	System.out.println("HASH:"+preprocessed);
+    	
+    	hash = hash(weightedpred) + 31*hash;
+    	System.out.println("HASH:"+hash(weightedpred));
+    	
+    	hash = hash(weightedvar) + 31*hash;
+    	System.out.println("HASH:"+hash(weightedvar));
+    	
+    	hash = hash(weights) + 31*hash;
+    	System.out.println("HASH:"+hash(weights));
+    	
+    	hash = logModel + 31*hash;
+    	System.out.println("HASH:"+logModel);
+    	
+    	return hash;
+    	
+    	
+    }
+    
     
     public Regtree(int numNodes, int ncatsplit, boolean storeResultsInLeaves, int logModel) {
         this(numNodes, logModel);

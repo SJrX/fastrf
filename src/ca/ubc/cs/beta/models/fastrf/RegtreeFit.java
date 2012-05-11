@@ -3,7 +3,7 @@ package ca.ubc.cs.beta.models.fastrf;
 import java.util.*;
 import ca.ubc.cs.beta.models.fastrf.utils.*;
 
-public class RegtreeFit {
+public strictfp class RegtreeFit {
     
     private static Random r;
     
@@ -67,6 +67,7 @@ public class RegtreeFit {
 	private static int[] leftside;
 	private static int[] rightside;
     
+	
     /**
      * Fits a regression tree.
      * @params allTheta, allX: matrices of all of the configurations/instances
@@ -76,6 +77,18 @@ public class RegtreeFit {
      */
     public static Regtree fit(double[][] allTheta, double[][] allX, int[][] dataIdxs, double[] y, RegtreeBuildParams params) {
     	boolean printDebug = false;
+    	
+    	
+    	
+    	
+    
+		
+    	/*
+    	 System.out.println("Params:" + params);
+         //System.out.println("AllX" + Arrays.deepToString(allX));
+         System.out.println("AllTheta" + Arrays.deepToString(allTheta));
+         System.out.println("dataIdxs" + Arrays.deepToString(dataIdxs));
+         System.out.println("y" + Arrays.toString(y));*/
     	long startTime = new Date().getTime();
     	long currentTime = startTime;
     	
@@ -164,14 +177,16 @@ public class RegtreeFit {
         
         //=== Extract data from the input params.
         int[] catDomainSizes = params.catDomainSizes;
-/*         System.out.println("Params:" + params);
+        /*
+        System.out.println("2");
+        System.out.println("Params:" + params);
         System.out.println("Nvars" + nvars);
-        System.out.println("AllX" + Arrays.deepToString(allX));
+       // System.out.println("AllX" + Arrays.deepToString(allX));
         System.out.println("AllTheta" + Arrays.deepToString(allTheta));
         System.out.println("dataIdxs" + Arrays.deepToString(dataIdxs));
         System.out.println("y" + Arrays.toString(y));
-        System.out.println("cens:" + Arrays.toString(cens)); */
-
+        //System.out.println("cens:" + Arrays.toString(cens));
+*/
         if (catDomainSizes != null && catDomainSizes.length != nvars) {
             throw new RuntimeException("catDomainSizes must be of the same length as size(X, 2)");
         }
@@ -281,6 +296,19 @@ public class RegtreeFit {
         	ynodeTheta = new int[numTheta][];
         	int[] Thetacount = new int[numTheta];
         	for (int i=0; i < N; i++) {
+        		/*
+        		System.out.println("*****");
+        		System.out.println(Arrays.deepToString(allTheta));
+        		System.out.println(Arrays.deepToString(allX));
+        		System.out.println(Arrays.toString(y));
+        		System.out.println(Arrays.deepToString(dataIdxs));
+        		System.out.println(N);
+        		System.out.println(Arrays.toString(Thetacount));
+        		System.out.println(i);
+        		*/
+        		
+        		
+        		
                 Thetacount[dataIdxs[i][0]]++;
         	}
         	for (int i=0; i < numTheta; i++) {

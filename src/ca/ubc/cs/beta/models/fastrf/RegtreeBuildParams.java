@@ -16,7 +16,7 @@ import java.util.Arrays;
  * @param random will be used instead of seed if it's not null.
  * @param minVariance - Minimum Variance value that will ever be returned on apply call
  */
-public class RegtreeBuildParams implements java.io.Serializable {    
+public strictfp class RegtreeBuildParams implements java.io.Serializable {    
 	private static final long serialVersionUID = -6803645785543626390L;
 	public int[] catDomainSizes;
     public int[][] condParents = null;
