@@ -98,6 +98,50 @@ public strictfp class RandomForest implements java.io.Serializable {
         return learnModel(numTrees, allTheta, allX, theta_inst_idxs, y, dataIdxs, params);
     }
     
+    
+    /**
+    *
+    *
+    * N - Number of configurations 
+    * K - Number of parameters for a configuration 
+    * M - Number of instances
+    * L - Number of features for an instance
+    * P - Number of Runs preformed
+    *
+    * @param numTrees - Number of trees in the Random Forest
+    * @param allTheta - N x K matrix of parameter values [ Each row is a configuration, each entry in a row represents the value for that parameter (in that configuration)]
+    * @param allX - M x L matrix of instance features [ Each row is all the features for a single instance, each entry in a row represents the value of that feature].
+    * @param theta_inst_idxs - P x 2 - Pairs of indexes ( A,B) where A points to a row in allTheta, and B points to a row in allX [ So an configuration, instance pair]. 
+    * @param y - P x 1 - Response values for the corresponding pairs in theta_inst_idxes.
+    * @param cens - P x 1 - (If it's false the run was not capped, if true, then y is a lower bound of the run time).
+    * @param params - 
+    *
+    */
+   public static RandomForest learnModelImputedValues(int numTrees, double[][] allTheta, double[][] allX, int[][] theta_inst_idxs, double[][] y, RegtreeBuildParams params) {
+       Random r = params.random;
+       if (r == null) {
+           r = new Random();
+           if (params.seed != -1) {
+               r.setSeed(params.seed);
+           }
+       }        
+       
+       
+       
+       int N = y.length;
+       
+       // Do bootstrap sampling for data for each tree.
+       int[][] dataIdxs = new int[numTrees][N];
+       for (int i = 0; i < numTrees; i++) {
+           for (int j = 0; j < N; j++) {
+               dataIdxs[i][j] = r.nextInt(N);
+           }
+       }
+       return learnModelImputedValues(numTrees, allTheta, allX, theta_inst_idxs, y, dataIdxs, params);
+   }
+   
+   
+    
     public static void fixInputs(double[] input)
     {
     	for(int j=0; j < input.length; j++)
@@ -480,6 +524,87 @@ public strictfp class RandomForest implements java.io.Serializable {
     }
     
 
+    /**
+     * Learns a random forest putting the specified data points into each tree.
+     * y values may vary 
+     * @see RegtreeFit.fit
+     */
+    public static RandomForest learnModelImputedValues(int numTrees, double[][] allTheta, double[][] allX, int[][] theta_inst_idxs, double[][] y, int[][] dataIdxs, RegtreeBuildParams params) {
+    	/*
+    	fixInputs(allTheta);
+		fixInputs(y);
+		fixInputs(allX);
+        System.out.println("New Hash Codes");
+        System.out.println(RandStateHash.randHash(params.random));
+    	System.out.println(numTrees);
+        System.out.println(hash(allTheta));
+        System.out.println(hash(allX));
+        System.out.println(hash(theta_inst_idxs));
+        System.out.println(hash(y));
+        System.out.println(hash(dataIdxs));
+        System.out.println(hash(allTheta));
+        */
+//        System.out.println(Arrays.deepToString(allX));
+       //System.out.println(Arrays.deepToString(theta_inst_idxs));
+//        System.out.println(Arrays.toString(y));
+//        System.out.println(Arrays.deepToString(dataIdxs));
+       /**
+        * TODO Add validaiton for index errors
+        */
+    	
+   	boolean writeOutput = false;
+	if(writeOutput)
+	{
+		
+		
+		try {
+		File f = File.createTempFile("RandomForestParams", "Build");
+		ObjectOutputStream o = new ObjectOutputStream(new FileOutputStream(f));
+		
+		o.writeInt(numTrees);
+		o.writeObject(allTheta);
+		o.writeObject(allX);
+		o.writeObject(theta_inst_idxs);
+		o.writeObject(y);
+		o.writeObject(dataIdxs);
+		o.writeObject(params);
+		
+		
+		System.out.println("Calls written & deleted to:" + f.getAbsolutePath() );
+		o.close();
+		} catch(IOException e)
+		{
+			System.err.println(e);
+		}
+		
+	}
+	
+        if (dataIdxs.length != numTrees) {
+            throw new RuntimeException("length(dataIdxs) must be equal to numtrees.");
+        }
+    
+        
+        
+        RandomForest rf = new RandomForest(numTrees, params);
+        for (int i = 0; i < numTrees; i++) {
+            int N = dataIdxs[i].length;
+            int[][] this_theta_inst_idxs = new int[N][];
+            double[] thisy = new double[N];
+            for (int j=0; j<N; j++) {
+                int idx = dataIdxs[i][j];
+                this_theta_inst_idxs[j] = theta_inst_idxs[idx];
+                thisy[j] = y[i][idx];
+            }
+            try {
+            rf.Trees[i] = RegtreeFit.fit(allTheta, allX, this_theta_inst_idxs, thisy, params);
+            } catch(RuntimeException e)
+            {
+            	throw e;
+            }
+        }
+        return rf;
+    }
+    
     
     /**
      * Propogates data points down the regtree and returns a numtrees*X.length vector of node #s
