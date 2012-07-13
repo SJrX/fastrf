@@ -36,7 +36,10 @@ public strictfp class RegtreeFwd {
                 double cutoff = tree.cut[thisnode];
                 int left_kid = tree.children[thisnode][0];
                 int right_kid = tree.children[thisnode][1];
-                // Determine if the points goes left or goes right
+                // Determine if the point goes left or goes right
+                if(Double.isNaN(X[i][Math.abs(splitvar)-1])){
+                    throw new RuntimeException("In fwd, trying to split on variable " + splitvar + " (1-based, negative means categorical), but data point number " + i + " is NaN for that.");
+                }
                 if (splitvar > 0) { 
                     // continuous variable
                     thisnode = (X[i][splitvar-1] <= cutoff ? left_kid : right_kid);
@@ -112,10 +115,16 @@ public strictfp class RegtreeFwd {
                         queue.add(right_kid);
                         thisnode = left_kid;
                     } else {
+                        if(Double.isNaN(Theta[i][Math.abs(splitvar)-1])){
+                            throw new RuntimeException("In marginalFwd, trying to split on variable " + splitvar + " (1-based, negative means categorical), but data point number " + i + " is NaN for that.");
+                        }
                         if (splitvar > 0) { // continuous
                             thisnode = (Theta[i][splitvar-1] <= cutoff ? left_kid : right_kid);
                         } else { // categorical
                             int x = (int)Theta[i][-splitvar-1];
+                            if (x<=0){
+                                throw new RuntimeException("Input error in Regtree.marginalFwd: categoricals have to be integers >= 1");
+                            }
                             int split = tree.catsplit[(int)cutoff][x-1];
                             if (split == 0) thisnode = left_kid;
                             else if (split == 1) thisnode = right_kid;
@@ -198,6 +207,9 @@ public strictfp class RegtreeFwd {
                         queue.add(right_kid);
                         thisnode = left_kid;
                     } else {
+                        if(Double.isNaN(X[i][Math.abs(splitvar)-1-thetacols])){
+                            throw new RuntimeException("In preprocess_inst_splits, trying to split on variable " + splitvar + " (1-based, negative means categorical), but data point number " + i + " is NaN for that.");
+                        }
                         if (splitvar > 0) { // continuous
                             thisnode = (X[i][splitvar-1-thetacols] <= cutoff ? left_kid : right_kid);
                         } else { // categorical
