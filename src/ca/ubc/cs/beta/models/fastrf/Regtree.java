@@ -90,61 +90,61 @@ public strictfp class Regtree implements java.io.Serializable {
     	int hash = 0;
     	
     	hash = hash(node) + 31*hash;
-    	System.out.println("HASH:"+hash(node));
+    	System.out.println("HASH1:"+hash(node));
     	Arrays.toString(node);
     	
     	hash = hash(parent) + 31*hash;
-    	System.out.println("HASH:"+hash(parent));
+    	System.out.println("HASH2:"+hash(parent));
     	Arrays.toString(parent);
     	
     	hash = hash(var) + 31*hash;
-    	System.out.println("HASH:"+hash(var));
+    	System.out.println("HASH3:"+hash(var));
     	
     	
     	
     	hash = hash(cut) + 31*hash;
-    	System.out.println("HASH:"+hash(cut));
+    	System.out.println("HASH4:"+hash(cut));
     	
     	hash = hash(nodesize) + 31*hash;
-    	System.out.println("HASH:"+hash(nodesize));
+    	System.out.println("HASH5:"+hash(nodesize));
     	
     	hash = npred + 31*hash;
-    	System.out.println("HASH:"+npred);
+    	System.out.println("HASH6:"+npred);
     	
     	hash = hash(children) + 31*hash;
-    	System.out.println("HASH:"+hash(children));
+    	System.out.println("HASH7:"+hash(children));
     	
     	hash = hash(catsplit) + 31*hash;
-    	System.out.println("HASH:"+hash(catsplit));
+    	System.out.println("HASH8:"+hash(catsplit));
     	
     	hash = hash(ysub) + 31*hash;
-    	System.out.println("HASH:"+hash(ysub));
+    	System.out.println("HASH9:"+hash(ysub));
     	
     	
     	
     	hash = hash(nodepred) + 31*hash;
-    	System.out.println("HASH:"+hash(nodepred));
+    	System.out.println("HASH0:"+hash(nodepred));
     	
     	hash = hash(nodevar) + 31*hash;
-    	System.out.println("HASH:"+hash(nodevar));
+    	System.out.println("HASHA:"+hash(nodevar));
     	
     	hash = (resultsStoredInLeaves?1:0) + 31*hash;
-    	System.out.println("HASH:"+resultsStoredInLeaves);
+    	System.out.println("HASHB:"+resultsStoredInLeaves);
     	
     	hash = preprocessed?1:0 + 31*hash;
-    	System.out.println("HASH:"+preprocessed);
+    	System.out.println("HASHC:"+preprocessed);
     	
     	hash = hash(weightedpred) + 31*hash;
-    	System.out.println("HASH:"+hash(weightedpred));
+    	System.out.println("HASHD:"+hash(weightedpred));
     	
     	hash = hash(weightedvar) + 31*hash;
-    	System.out.println("HASH:"+hash(weightedvar));
+    	System.out.println("HASHE:"+hash(weightedvar));
     	
     	hash = hash(weights) + 31*hash;
-    	System.out.println("HASH:"+hash(weights));
+    	System.out.println("HASHF:"+hash(weights));
     	
     	hash = logModel + 31*hash;
-    	System.out.println("HASH:"+logModel);
+    	System.out.println("HASHG:"+logModel);
     	
     	return hash;
     	
