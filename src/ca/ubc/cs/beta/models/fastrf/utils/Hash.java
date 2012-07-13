@@ -11,12 +11,12 @@ public strictfp class Hash {
 	
 	public static int hash(int[] obj)
 	{
-		return Arrays.hashCode(obj);
+		return hashCode(obj);
 	}
 
 	public static int hash(int[][] obj)
 	{
-		return Arrays.deepHashCode(obj);
+		return hashCode(obj);
 	}
 	
 	protected static float[] cFloat(double[] value)
@@ -43,12 +43,101 @@ public strictfp class Hash {
 
 	public static int hash(double[] obj)
 	{
-		
-		return Arrays.hashCode(cFloat(obj));
+		if (obj == null) return 0;
+		return hashCode(obj);
 	}
 	public static int hash(double[][] obj)
 	{
-		
-		return Arrays.deepHashCode(cFloat(obj));
+		if (obj == null) return 0;
+		return hashCode(obj);
 	}
+	
+	public static int hashCode(double value)
+	{
+		return  (int) (  Double.doubleToLongBits(value) ^  (Double.doubleToLongBits(value) >>> 32) );
+	}
+	
+	public static int hashCode(double[] values)
+	{
+		if (values == null) return 0;
+		int result = 17;
+		
+		for(double value : values)
+		{
+			result = 31 * hashCode(value)  + result;
+		}
+		
+		return result;
+	}
+	
+	public static int hashCode(double[][] values)
+	{
+		if (values == null) return 0;
+		int result = 11;
+		for(double[] value : values)
+		{
+			result = 37 * hashCode(value) + result; 
+		}
+		
+		return result;
+	}
+	
+	
+	public static int hashCode(float value)
+	{
+		return ( (int) Float.floatToIntBits(value));
+	}
+	
+	public static int hashCode(float[] values)
+	{
+		if (values == null) return 0;
+		int result = 17;
+		
+		for(float value : values)
+		{
+			result = 31 * hashCode(value)  + result;
+		}
+		
+		return result;
+	}
+	
+	public static int hashCode(float[][] values)
+	{
+		if (values == null) return 0;
+		int result = 11;
+		for(float[] value : values)
+		{
+			result = 37 * hashCode(value) + result; 
+		}
+		
+		return result;
+	}
+	
+	
+	
+	
+	public static int hashCode(int[] values)
+	{
+		if (values == null) return 0;
+		int result = 53;
+		for(int value : values)
+		{
+			result = 41 * value + result;  
+		}
+		
+		return result;
+	}
+	
+
+	public static int hashCode(int[][] values)
+	{
+		if (values == null) return 0;
+		int result = 59;
+		for(int[] value : values)
+		{
+			result = 3 * hashCode(value) + result;
+		}
+		return result;
+	}
+	
 }

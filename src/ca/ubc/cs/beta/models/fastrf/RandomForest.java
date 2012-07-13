@@ -95,6 +95,24 @@ public strictfp class RandomForest implements java.io.Serializable {
                 dataIdxs[i][j] = r.nextInt(N);
             }
         }
+        
+        for(int i=0; i < allX.length; i++)
+     	 {
+        	for(int j=0; j < allX[i].length; j++)
+        	{
+        		allX[i][j] = Math.round(allX[i][j]*1000000L)/1000000.0;
+        	}
+     		 System.out.println("AllX (" +i+"):" + Arrays.toString(allX[i]));
+     	 }
+     	 
+     	 for(int i=0; i < allTheta.length; i++)
+     	 {
+     		 System.out.println("AllTheta ("+i+"):" + Arrays.toString(allTheta[i]));
+     	 }
+     	 
+     	System.out.println("Params:" + params);
+   	   System.out.println("y" + Arrays.toString(y));
+   	   
         return learnModel(numTrees, allTheta, allX, theta_inst_idxs, y, dataIdxs, params);
     }
     
@@ -137,6 +155,8 @@ public strictfp class RandomForest implements java.io.Serializable {
                dataIdxs[i][j] = r.nextInt(N);
            }
        }
+       
+   
        return learnModelImputedValues(numTrees, allTheta, allX, theta_inst_idxs, y, dataIdxs, params);
    }
    
