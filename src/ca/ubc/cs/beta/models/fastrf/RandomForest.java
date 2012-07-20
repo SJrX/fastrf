@@ -96,23 +96,31 @@ public strictfp class RandomForest implements java.io.Serializable {
             }
         }
         
-        for(int i=0; i < allX.length; i++)
-     	 {
-        	for(int j=0; j < allX[i].length; j++)
-        	{
-        		allX[i][j] = Math.round(allX[i][j]*1000000L)/1000000.0;
-        	}
-     		 System.out.println("AllX (" +i+"):" + Arrays.toString(allX[i]));
-     	 }
-     	 
-     	 for(int i=0; i < allTheta.length; i++)
-     	 {
-     		 System.out.println("AllTheta ("+i+"):" + Arrays.toString(allTheta[i]));
-     	 }
-     	 
-     	System.out.println("Params:" + params);
-   	   System.out.println("y" + Arrays.toString(y));
-   	   
+        if(RoundingMode.ROUND_NUMBERS_FOR_MATLAB_SYNC)
+        {
+        
+	        for(int i=0; i < allX.length; i++)
+	     	 {
+	        	for(int j=0; j < allX[i].length; j++)
+	        	{
+	        		allX[i][j] = Math.round(allX[i][j]*1000000L)/1000000.0;
+	        	}
+	     		 System.out.println("AllX (" +i+"):" + Arrays.toString(allX[i]));
+	     	 }
+	     	 
+	     	 for(int i=0; i < allTheta.length; i++)
+	     	 {
+	     		 System.out.println("AllTheta ("+i+"):" + Arrays.toString(allTheta[i]));
+	     	 }
+	     	 
+	     	System.out.println("Params:" + params);
+	     	
+	     	for(int i=0; i < y.length; i++)
+	     	{
+	     		y[i] = Math.round(y[i] * 1000000000.0)/1000000000.0;
+	     	}
+	   	   System.out.println("y" + Arrays.toString(y));
+        }
         return learnModel(numTrees, allTheta, allX, theta_inst_idxs, y, dataIdxs, params);
     }
     
