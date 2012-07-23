@@ -77,8 +77,11 @@ public strictfp class RegtreeFit {
      */
     public static Regtree fit(double[][] allTheta, double[][] allX, int[][] dataIdxs, double[] y, RegtreeBuildParams params) {
     	boolean printDebug = false;
-    	
-        System.out.println("dataIdxs" + Arrays.deepToString(dataIdxs));
+    	if(RoundingMode.ROUND_NUMBERS_FOR_MATLAB_SYNC)
+    	{
+    	    System.out.println("dataIdxs" + Arrays.deepToString(dataIdxs));
+    	}
+    
       
     	long startTime = new Date().getTime();
     	long currentTime = startTime;
