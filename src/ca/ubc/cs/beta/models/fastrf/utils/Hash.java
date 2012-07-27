@@ -1,6 +1,4 @@
 package ca.ubc.cs.beta.models.fastrf.utils;
-
-import java.util.Arrays;
 /**
  * Utility class to handle generating lossy float based hashes on objects
  * (If not in strictfp mode, the last few digits on 

@@ -286,7 +286,7 @@ public strictfp class RandomForest implements java.io.Serializable {
     	System.out.println("---------");
     	System.out.println(f2.matlabHashCode());
     	
-    	Object[][] arr2 = arr;
+    	
     	System.out.println("f1var:"+Arrays.toString(f1.Trees[2].var));
     	System.out.println("f2var:"+Arrays.toString(f2.Trees[2].var));
     	System.out.println(Arrays.equals(f1.Trees[2].var, f2.Trees[2].var));
