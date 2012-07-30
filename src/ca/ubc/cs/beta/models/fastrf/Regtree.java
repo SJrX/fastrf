@@ -85,6 +85,10 @@ public strictfp class Regtree implements java.io.Serializable {
     
     public int hashCode()
     {
+    	
+    	//if (true) throw new IllegalStateException("");
+    	
+    	if(true) return 0;
     	System.out.println("=======");
     	
     	int hash = 0;
