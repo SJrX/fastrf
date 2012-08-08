@@ -28,7 +28,7 @@
 		<delete dir="dist"/>
 	</target>
 	<target name="compile" depends="init">
-		<javac srcdir="src" destdir="build/classes">
+		<javac srcdir="src" destdir="build/classes" debug="true">
 		<classpath refid="compile.classpath"/>
 		</javac>
 	</target>
@@ -43,8 +43,11 @@
 		</copy>
 		<echo file="build/classes/${version.file}">${version.string}</echo>
 		<jar destfile="dist/fastrf.jar" basedir="build/classes"/>
-
-			
+		<jar destfile="dist/fastrf-src.jar">
+			<fileset dir="src/">
+				 <include name="**/*.java"/>
+			</fileset>
+		</jar>
 	</target>			
 	<target name="deploy" depends="archive">
 		<mkdir dir="${deploy.dir}"/>

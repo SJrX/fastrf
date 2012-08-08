@@ -60,6 +60,7 @@ public strictfp class RegtreeBuildParams implements java.io.Serializable {
     
     public long seed = -1;
     public Random random = null;
+	public boolean brokenVarianceCalculation = true;
     
     /**
      * Matlab cell arrays don't carry over to Java very well so create the conditional arrays from the cell arrays

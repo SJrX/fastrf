@@ -621,10 +621,10 @@ public strictfp class RandomForest implements java.io.Serializable {
             for (int j=0; j<N; j++) {
                 int idx = dataIdxs[i][j];
                 this_theta_inst_idxs[j] = theta_inst_idxs[idx];
-                thisy[j] = y[i][idx];
+                //thisy[j] = y[i][j];
             }
             try {
-            rf.Trees[i] = RegtreeFit.fit(allTheta, allX, this_theta_inst_idxs, thisy, params);
+            rf.Trees[i] = RegtreeFit.fit(allTheta, allX, this_theta_inst_idxs, y[i], params);
             } catch(RuntimeException e)
             {
             	throw e;
@@ -662,7 +662,25 @@ public strictfp class RandomForest implements java.io.Serializable {
 				double var = forest.Trees[i].nodevar[result[j]];
 				
                 if (forest.logModel>0) {
-                    pred = Math.log10(pred);
+                	
+                	if(forest.buildParams.brokenVarianceCalculation)
+                	{
+                		pred = Math.log10(pred);
+                	} else
+                	{
+                		double test_mu_n = pred;
+	    	            double test_var_n = var;
+	    	            
+	    	            double var_ln = Math.log(test_var_n/(test_mu_n*test_mu_n) + 1);
+	    	            double	mu_ln = Math.log(test_mu_n) - var_ln/2;
+	    	            
+	    	            double var_l10 = var_ln / Math.log(10) / Math.log(10);
+	    	            double mu_l10 = mu_ln / Math.log(10); 
+	    	            
+	    	            pred = mu_l10;
+	    	            var = var_l10;
+                	}
+                   // System.out.println( i+ "," + j + ":" + "pred: " + pred + " var: " + var);
                    // System.out.println("Variance for Tree[  " + i + "] is " + var);
                 }
                 retn[j][0] += pred;
@@ -774,6 +792,11 @@ public strictfp class RandomForest implements java.io.Serializable {
                 }
                 retn[j][0] += pred;
                 retn[j][1] += vars[j]+pred*pred;
+                
+//                if(Theta.length == 1)
+//                {
+//                	System.out.println(" Tree " + i + " predicted " + pred);
+//                }
             }
         }
         
@@ -788,6 +811,7 @@ public strictfp class RandomForest implements java.io.Serializable {
             	System.err.println("[WARN]: Variance is less than " + MIN_VARIANCE_RESULT + " > " + retn[i][1]);
             	assert(retn[i][1] > MIN_VARIANCE_RESULT); //Assert negative variance only comes from numerical issues (and they shouldn't make it too small)
             }
+           
             retn[i][1] = Math.max(forest.minVariance, retn[i][1]);
         }
         return retn;
