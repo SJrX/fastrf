@@ -35,8 +35,8 @@
 	<target name="archive" depends="compile">
 		
 		<buildnumber file="/ubc/cs/project/arrow/seramage/software/build-numbers/buildnumber-${ant.project.name}"/>
-		<property name="version.devstring" value="v${version.major}.${version.minor}dev-${build.number}"/>
-		<property name="version.string" value="v${version.major}.${version.minor}${version.beta}-${build.number}"/>
+		<property name="version.devstring" value="v${version.major}.${version.minor}.${version.revision}dev-${build.number}"/>
+		<property name="version.string" value="v${version.major}.${version.minor}.${version.revision}${version.beta}-${build.number}"/>
 		<echo file="${version.file.dev}">${version.devstring}</echo>
 		<copy todir="dist/">
 			<fileset refid="lib"/>	
