@@ -29,12 +29,16 @@ public strictfp class Regtree implements java.io.Serializable {
     public double[] weightedvar;
     public double[] weights;
     
+    public boolean preprocessed_for_classification;
+    public double[][] bestClasses;
+    
     public int logModel;
 
     public Regtree(int numNodes, int logModel) {
         this.numNodes = numNodes;
         this.logModel = logModel;
         preprocessed = false;
+        preprocessed_for_classification = false;
     }
     
     
@@ -233,6 +237,26 @@ public strictfp class Regtree implements java.io.Serializable {
         for (int i=0; i < X.length; i++) {
             retn[i][0] = tree.nodepred[nodes[i]];
             retn[i][1] = tree.nodevar[nodes[i]];
+        }
+        return retn;
+    }
+    
+    /**
+     * Classifies the given instantiations of features
+     * @returns a matrix of size X.length where index i contains the 
+     * most popular response for X[i]
+     */
+    public static double[] classify(Regtree tree, double[][] X) {
+        if (!tree.preprocessed_for_classification) {
+            RegtreeFwd.preprocess_for_classification(tree);
+        }
+        
+        int[] nodes = RegtreeFwd.fwd(tree, X);
+        
+        double[] retn = new double[X.length];
+        for (int i=0; i < X.length; i++) {
+            double[] best = tree.bestClasses[nodes[i]];
+            retn[i] = best[(int)(Math.random() * best.length)];
         }
         return retn;
     }

@@ -55,4 +55,49 @@ public class Utils {
         }
         return result;
     }
+    
+    public static double[] mode(double[] arr) {
+        HashMap<Double, Integer> freq = new HashMap<Double, Integer>();
+        int highestFreq = 0;
+        Vector<Double> best = new Vector<Double>();
+        for (int i=0; i < arr.length; i++) {
+            Integer cur = freq.get(arr[i]);
+            if (cur == null) cur = 0;
+            cur++;
+            if (cur > highestFreq) {
+                highestFreq = cur;
+                best.clear();
+            }
+            if (cur == highestFreq) best.add(arr[i]);
+            freq.put(arr[i], cur);
+        }
+        double[] retn = new double[best.size()];
+        for (int i=0; i < best.size(); i++) {
+            retn[i] = best.elementAt(i);
+        }
+        return retn;
+    }
+    
+    /**
+     * Transforms the given inputs. Assumes keptColumns is 0-indexed, sorted in increasing order,
+     * and has the same length as scale and bias.
+     */
+    public static double[][] transform(double[][] X, int[] keptColumns, double[] scale, double[] bias) {
+        if (X == null) throw new RuntimeException("X is null in transform.");
+        if (X.length == 0 || keptColumns == null) return X;
+        if (scale == null || bias == null || keptColumns.length != scale.length || keptColumns.length != bias.length) {
+            throw new RuntimeException("Badly formatted inputs to transform.");
+        }
+        
+        double[][] ret = new double[X.length][keptColumns.length];
+        for (int i=0; i < X.length; i++) {
+            for (int j=0, k=0; j < X[i].length && k < keptColumns.length; j++) {
+                if (j == keptColumns[k]) {
+                    ret[i][k] = (X[i][j] - bias[k]) / scale[k];
+                    k++;
+                }
+            }
+        }
+        return ret;
+    }
 }

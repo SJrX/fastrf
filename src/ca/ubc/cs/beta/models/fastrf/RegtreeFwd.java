@@ -2,6 +2,8 @@ package ca.ubc.cs.beta.models.fastrf;
 
 import java.util.*;
 
+import ca.ubc.cs.beta.models.fastrf.utils.Utils;
+
 public strictfp class RegtreeFwd {
     /**
      * Propogates data points down the regtree and returns a 1*X.length vector of node #s
@@ -52,6 +54,10 @@ public strictfp class RegtreeFwd {
                 } else { 
                     // categorical variable
                     int x = (int)X[i][-splitvar-1];
+                    if (x<=0){
+                        throw new RuntimeException("Input error in Regtree.fwd: categoricals have to be integers >= 1");
+                    }
+
                     int split = tree.catsplit[(int)cutoff][x-1];
                     if (split == 0) thisnode = left_kid;
                     else if (split == 1) thisnode = right_kid;
@@ -388,5 +394,21 @@ public strictfp class RegtreeFwd {
         }
         tree.recalculateStats(thisnode);
 		*/
+    }
+
+    /**
+     * Preprocesses the regtree for classification. Stores an array of the most popular responses for each leaf.
+     */
+    public static void preprocess_for_classification(Regtree tree) {
+        if (!tree.resultsStoredInLeaves) {
+            throw new RuntimeException("Classification can only be done if the tree was built with the resultsStoredInLeaves flag on.");
+        }
+        tree.bestClasses = new double[tree.numNodes][];
+        for (int i=0; i < tree.numNodes; i++) {
+            if (tree.var[i] != 0) // not a leaf
+                continue;
+            tree.bestClasses[i] = Utils.mode(tree.ysub[i]);
+        }
+        tree.preprocessed_for_classification = true;
     }
 }

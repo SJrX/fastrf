@@ -10,4 +10,3 @@ public class RoundingMode {
 		ROUND_NUMBERS_FOR_MATLAB_SYNC = b;
 	}
 }
-
