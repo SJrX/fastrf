@@ -3,8 +3,11 @@
 	<property name="private.buildfile" value="build-resources/private/user-antbuild.properties"/>
 		<property file="${private.buildfile}"/>
 		<property file="build-resources/antbuild.properties"/>
+		<!-- If you don't specify a buildnumber file we will use this -->
+		<property name="buildnumberpath" value="build/classes/"/>
 		<property name="version.file" value="fastrf-version.txt"/>
 		<property name="version.file.dev" value="version/${version.file}"/>
+	
 		<fail message="No Software Directory specified, a private build file should exist in ${private.buildfile} this should specify at the very least 'software.dir'">
 			<condition>
 				<not>
@@ -12,44 +15,58 @@
 				</not>
 			</condition>
 		</fail>
+	
+	
 	<mkdir dir="lib"/> <!-- Doesn't store anything currently, but if it doesn't exist build will fail. Git won't sync an empty folder either-->
+	
 	<path id="compile.classpath">
 		<fileset dir="lib" id="lib">
 			<include name="*.jar"/>
 		</fileset>
-	</path>	
-	<target name="init"> 
+	</path>
+	
+	
+	<target name="init" description="Initializes Build Environment"> 
 		<mkdir dir="build/classes/"/>
 		<mkdir dir="dist"/>
 	</target>
 	
-	<target name="clean">
+	<target name="clean" description="Cleans Build Enviroment">
 		<delete dir="build"/>
 		<delete dir="dist"/>
 	</target>
-	<target name="compile" depends="init">
+	
+	<target name="compile" depends="init" description="Compiles the source code">
 		<javac srcdir="src" destdir="build/classes" debug="true">
 		<classpath refid="compile.classpath"/>
 		</javac>
 	</target>
-	<target name="archive" depends="compile">
-		
-		<buildnumber file="/ubc/cs/project/arrow/seramage/software/build-numbers/buildnumber-${ant.project.name}"/>
+	
+	<target name="archive" depends="compile" description="Creates JAR files for release">
+		<buildnumber file="${buildnumberpath}/buildnumber-${ant.project.name}"/>
 		<property name="version.devstring" value="v${version.major}.${version.minor}.${version.revision}dev-${build.number}"/>
 		<property name="version.string" value="v${version.major}.${version.minor}.${version.revision}${version.beta}-${build.number}"/>
 		<echo file="${version.file.dev}">${version.devstring}</echo>
+		
 		<copy todir="dist/">
 			<fileset refid="lib"/>	
 		</copy>
-		<echo file="build/classes/${version.file}">${version.string}</echo>
+		
+		
+		<!-- Write version to file, other projects do this differently but we need it in the class path because we don't want to depend on ACLib -->
+		<echo file="build/classes/${version.file}">${version.string}</echo> 
+		
 		<jar destfile="dist/fastrf.jar" basedir="build/classes"/>
+		
 		<jar destfile="dist/fastrf-src.jar">
 			<fileset dir="src/">
 				 <include name="**/*.java"/>
 			</fileset>
 		</jar>
+		
 	</target>			
-	<target name="deploy" depends="archive">
+	
+	<target name="deploy" depends="archive" description="Deploys JAR Archives to deploy dir">
 		<mkdir dir="${deploy.dir}"/>
 		<chmod perm="666">
 			<fileset dir="${deploy.dir}">
@@ -71,5 +88,7 @@
 						<include name="*.sh"/>
 				</fileset>
 		</chmod>
+		
+		<echo>Deployed version ${version.string} to ${deploy.dir}</echo>
 	</target>
 </project>
