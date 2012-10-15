@@ -8,8 +8,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.*;
 
-import ca.ubc.cs.beta.models.fastrf.utils.Utils;
-
 public strictfp class RandomForest implements java.io.Serializable {
     private static final long serialVersionUID = 5204746081208095705L;
     
@@ -31,6 +29,8 @@ public strictfp class RandomForest implements java.io.Serializable {
         this.minVariance = buildParams.minVariance;
         this.buildParams = buildParams;
     }
+    
+    
     
     public boolean equals(Object o)
     {
@@ -57,8 +57,8 @@ public strictfp class RandomForest implements java.io.Serializable {
     {
     	return Math.abs(hashCode()) % 32452867;
     }
-
     /**
+     *
      *
      * N - Number of configurations 
      * K - Number of parameters for a configuration 
@@ -83,6 +83,8 @@ public strictfp class RandomForest implements java.io.Serializable {
                 r.setSeed(params.seed);
             }
         }        
+        
+        
         
         int N = y.length;
         
@@ -124,6 +126,7 @@ public strictfp class RandomForest implements java.io.Serializable {
     
     
     /**
+    *
     *
     * N - Number of configurations 
     * K - Number of parameters for a configuration 
@@ -259,13 +262,19 @@ public strictfp class RandomForest implements java.io.Serializable {
     	RandomForest matlabForest = fromForestFile("/tmp/RandomForest4433899701602217560Build");
     	RandomForest javaForest = fromForestFile("/tmp/RandomForest8044841660237959103Build");
     	
+		
+    	
+    	
 	double[][] configs = {{2.0, 3.0, 2.0, 2.0, 4.0, 12.0, 5.0, 3.0, 5.0, 3.0, 19.0, 6.0, 4.0, 5.0, 2.0, 1.0, 1.0, 3.0, 16.0, 3.0, 5.0, 2.0, 1.0, 2.0, 7.0, 2.0}};
 	int[] treesUsed = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
 	
 	System.out.println(matlabForest.equals(javaForest));
 	System.out.println(Arrays.deepToString(RandomForest.applyRoundedMarginal(matlabForest, treesUsed, configs)));
 	System.out.println(Arrays.deepToString(RandomForest.applyRoundedMarginal(javaForest, treesUsed, configs)));
-    }
+	
+	
+		
+	}
     	
     
     public static void main2(String[] args)
@@ -276,6 +285,7 @@ public strictfp class RandomForest implements java.io.Serializable {
     	System.out.println(f1.matlabHashCode());
     	System.out.println("---------");
     	System.out.println(f2.matlabHashCode());
+    	
     	
     	System.out.println("f1var:"+Arrays.toString(f1.Trees[2].var));
     	System.out.println("f2var:"+Arrays.toString(f2.Trees[2].var));
@@ -345,6 +355,8 @@ public strictfp class RandomForest implements java.io.Serializable {
 			arr[1] = obj;
 		}
 		
+		
+			
 		return learnModel(numTrees, allTheta, allX, theta_inst_idxs, y, dataIdxs, params);
 		}catch(Exception e)
 		{
@@ -522,6 +534,8 @@ public strictfp class RandomForest implements java.io.Serializable {
             throw new RuntimeException("length(dataIdxs) must be equal to numtrees.");
         }
     
+        
+        
         RandomForest rf = new RandomForest(numTrees, params);
         for (int i = 0; i < numTrees; i++) {
             int N = dataIdxs[i].length;
@@ -673,7 +687,6 @@ public strictfp class RandomForest implements java.io.Serializable {
                 retn[j][1] += var+pred*pred;
             }
         }
-
         for (int i=0; i < X.length; i++) {
             retn[i][0] /= forest.numTrees;
             retn[i][1] /= forest.numTrees;
@@ -726,6 +739,7 @@ public strictfp class RandomForest implements java.io.Serializable {
     	return nval;
     }
     
+
     public static double[][] applyRoundedMarginal(RandomForest forest, int[] tree_idxs_used, double[][] Theta) {
     	double[][] results = applyMarginal(forest, tree_idxs_used, Theta);
     	for(int i=0; i < results.length; i++)
@@ -750,30 +764,7 @@ public strictfp class RandomForest implements java.io.Serializable {
         return results;
     }
     
-    	/**
-	 * Classifies the given instantiations of features
-	 * @returns a matrix of size X.length where index i contains the 
-	 * most popular response for X[i]
-	 */
-	public static double[] classify(RandomForest forest, double[][] X) {
-		// This currently uses numTrees*X.length memory in order to
-		// take advantage of batch forwarding of Xs. 
-		// There might be some way of reducing memory but I haven't thought about it yet.
-		double[][] votes = new double[X.length][forest.numTrees];
-		for (int i=0; i < forest.numTrees; i++) {
-			double[] res = Regtree.classify(forest.Trees[i], X);
-			for (int j=0; j < res.length; j++) {
-				votes[j][i] = res[j];
-			}
-		}
     
-		double[] retn = new double[X.length];
-		for (int i=0; i < X.length; i++) {
-			double[] best = Utils.mode(votes[i]);
-			retn[i] = best[(int)(Math.random()*best.length)];
-		}
-		return retn;
-	}
     
     public static double[][] applyMarginal(RandomForest forest, int[] tree_idxs_used, double[][] Theta) {
     	return applyMarginal(forest, tree_idxs_used, Theta, null);
@@ -837,14 +828,4 @@ public strictfp class RandomForest implements java.io.Serializable {
         }
         return prepared;
     }
-
-	/** 
-	 * Prepares the random forest for classification
-	 * @see RegtreeFwd.preprocess_for_classification
-	 */
-	public static void preprocessForestForClassification(RandomForest forest) {
-		for (int i=0; i < forest.numTrees; i++) {
-			RegtreeFwd.preprocess_for_classification(forest.Trees[i]);
-		}
-	}
 }

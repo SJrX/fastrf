@@ -66,7 +66,8 @@ public strictfp class RegtreeFit {
 	private static int numright;
 	private static int[] leftside;
 	private static int[] rightside;
-    	
+    
+	
     /**
      * Fits a regression tree.
      * @params allTheta, allX: matrices of all of the configurations/instances
