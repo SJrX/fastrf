@@ -48,7 +48,11 @@ public strictfp class RandomForest implements java.io.Serializable {
     }
     
     
-    public int hashCode()
+    public RegtreeBuildParams getBuildParams() {
+		return buildParams;
+	}
+
+	public int hashCode()
     {
     	return logModel ^ 2*numTrees ^ Arrays.deepHashCode(Trees);
     }
@@ -444,26 +448,32 @@ public strictfp class RandomForest implements java.io.Serializable {
     }
     public static void save(RandomForest forest)
     {
-    	
-    		
-    		
-    		try {
-    		File f = File.createTempFile("RandomForest", "Build");
-    		ObjectOutputStream o = new ObjectOutputStream(new FileOutputStream(f));
-    		
-    		
-    		o.writeObject(forest);
-
-    		
-    		
-    		System.out.println("Forest Saved To:" + f.getAbsolutePath() );
-    		o.close();
-    		} catch(IOException e)
-    		{
-    			System.err.println(e);
-    		}
+		try {
+			File f = File.createTempFile("RandomForest", "Build");
+			save(forest, f);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
     }
     
+    public static void save(RandomForest forest, String filename)
+    {
+    	File f = new File(filename);
+		save(forest, f);
+    }
+    
+
+    public static void save(RandomForest forest, File f){
+		try{
+	    	ObjectOutputStream o = new ObjectOutputStream(new FileOutputStream(f));
+			o.writeObject(forest);
+			System.out.println("Forest Saved To:" + f.getAbsolutePath() );
+			o.close();
+		} catch(IOException e) {
+			System.err.println(e);
+		}
+    }
+
     /**
      * Learns a random forest putting the specified data points into each tree.
      * @see RegtreeFit.fit
@@ -775,7 +785,11 @@ public strictfp class RandomForest implements java.io.Serializable {
 		return retn;
 	}
     
-    public static double[][] applyMarginal(RandomForest forest, int[] tree_idxs_used, double[][] Theta) {
+    public static double[][] marginalTreePredictions(RandomForest forest, int[] tree_idxs_used, double[][] Theta) {
+    	return marginalTreePredictions(forest, tree_idxs_used, Theta, null);
+    }
+	
+	public static double[][] applyMarginal(RandomForest forest, int[] tree_idxs_used, double[][] Theta) {
     	return applyMarginal(forest, tree_idxs_used, Theta, null);
     }
     
@@ -822,6 +836,36 @@ public strictfp class RandomForest implements java.io.Serializable {
             }
            
             retn[i][1] = Math.max(forest.minVariance, retn[i][1]);
+        }
+        return retn;
+    }
+    
+    /**
+     * Gets the individual tree predictions for the given configurations and instances
+     * @returns a matrix of size Theta.length*B where index (i,b) is the prediction for Theta[i] of tree b.
+     * @see RegtreeFwd.marginalFwd
+     */
+    public static double[][] marginalTreePredictions(RandomForest forest, int[] tree_idxs_used, double[][] Theta, double[][] X) {
+        int nTheta = Theta.length, nTrees = tree_idxs_used.length;
+		double[][] retn = new double[nTheta][nTrees];
+        
+        for (int i=0; i < nTrees; i++) {
+            Object[] result = RegtreeFwd.marginalFwd(forest.Trees[tree_idxs_used[i]], Theta, X);
+            double[] preds = (double[])result[0];
+            double[] vars = (double[])result[1];
+
+            for (int j=0; j < nTheta; j++) {
+                double pred = preds[j];
+                if (forest.logModel>0) {
+                    pred = Math.log10(pred);
+                }
+                retn[j][i] = pred;
+                
+//                if(Theta.length == 1)
+//                {
+//                	System.out.println(" Tree " + i + " predicted " + pred);
+//                }
+            }
         }
         return retn;
     }

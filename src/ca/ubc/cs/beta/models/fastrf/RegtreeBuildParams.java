@@ -54,7 +54,12 @@ public strictfp class RegtreeBuildParams implements java.io.Serializable {
     
     
     public int splitMin;
-    public double ratioFeatures;
+    public void setSplitMin(int splitMin) {
+		this.splitMin = splitMin;
+	}
+
+
+	public double ratioFeatures;
     public int logModel;
     public boolean storeResponses;
     
@@ -95,4 +100,8 @@ public strictfp class RegtreeBuildParams implements java.io.Serializable {
             }
         }
     }
+
+	public void setLogModel(int logModel) {
+		this.logModel = logModel;
+	}
 }
