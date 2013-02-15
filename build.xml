@@ -18,9 +18,29 @@
 			<include name="*.jar"/>
 		</fileset>
 	</path>	
-	<target name="init"> 
+	<target name="init" depends="git-status-init"> 
 		<mkdir dir="build/classes/"/>
 		<mkdir dir="dist"/>
+	</target>
+	
+	<target name="git-status-init" description="Initialize Git variables">
+				<exec executable="git" outputproperty="git.branch">
+					<arg value="rev-parse"/>
+					<arg value="--abbrev-ref"/>
+					<arg value="HEAD"/>
+				</exec>
+				
+				<exec executable="git" outputproperty="git.commit">
+							<arg value="rev-parse"/>
+							<arg value="HEAD"/>
+				</exec>
+			
+				<exec executable="git" resultproperty="git.dirty">
+							<arg value="diff"/>
+							<arg value="--exit-code"/>
+				</exec>
+				<echo>Git properties loaded, branch: ${git.branch} \n commit: ${git.commit} \n dirty: ${git.dirty}</echo>
+				
 	</target>
 	
 	<target name="clean">
@@ -50,6 +70,17 @@
 		</jar>
 	</target>			
 	<target name="deploy" depends="archive">
+		
+		<fail message="Cannot deploy a build for the git master branch if it is dirty">
+			<condition>
+				<and>
+				<equals arg1="${git.branch}" arg2="development" casesensitive="false" trim="true"/>
+				<equals arg1="${git.dirty}" arg2="1" casesensitive="false" trim="true"/>
+				</and>
+			</condition>
+		</fail>
+		
+		
 		<mkdir dir="${deploy.dir}"/>
 		<chmod perm="666">
 			<fileset dir="${deploy.dir}">
