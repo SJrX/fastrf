@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<project name="FastRF" default="compile">
+<project name="fastrf" default="compile">
 	<property name="private.buildfile" value="build-resources/private/user-antbuild.properties"/>
 		<property file="${private.buildfile}"/>
 		<property file="build-resources/antbuild.properties"/>
@@ -17,31 +17,44 @@
 		<fileset dir="lib" id="lib">
 			<include name="*.jar"/>
 		</fileset>
-	</path>	
+	</path>
+	
+	
+	<target name="git-status-init" description="Initialize Git variables">
+	
+					<exec executable="git" outputproperty="git.branch">
+						<arg value="rev-parse"/>
+						<arg value="--abbrev-ref"/>
+						<arg value="HEAD"/>
+					</exec>
+					
+					<exec executable="git" outputproperty="git.commit">
+								<arg value="rev-parse"/>
+								<arg value="HEAD"/>
+					</exec>
+		
+					<exec executable="git" outputproperty="git.shortcommit">
+										<arg value="rev-parse"/>
+										<arg value="--short=12"/>
+										<arg value="HEAD"/>
+							</exec>
+				
+					<exec executable="git" resultproperty="git.dirty" output="/dev/null">
+								<arg value="diff"/>
+								<arg value="--exit-code"/>
+					</exec>
+					<echo>Git properties loaded, branch: ${git.branch}
+commit: ${git.commit}
+shortcommit: ${git.shortcommit}
+dirty: ${git.dirty}</echo>
+	</target>
+	
 	<target name="init" depends="git-status-init"> 
 		<mkdir dir="build/classes/"/>
 		<mkdir dir="dist"/>
 	</target>
 	
-	<target name="git-status-init" description="Initialize Git variables">
-				<exec executable="git" outputproperty="git.branch">
-					<arg value="rev-parse"/>
-					<arg value="--abbrev-ref"/>
-					<arg value="HEAD"/>
-				</exec>
-				
-				<exec executable="git" outputproperty="git.commit">
-							<arg value="rev-parse"/>
-							<arg value="HEAD"/>
-				</exec>
-			
-				<exec executable="git" resultproperty="git.dirty">
-							<arg value="diff"/>
-							<arg value="--exit-code"/>
-				</exec>
-				<echo>Git properties loaded, branch: ${git.branch} \n commit: ${git.commit} \n dirty: ${git.dirty}</echo>
-				
-	</target>
+	
 	
 	<target name="clean">
 		<delete dir="build"/>
@@ -54,53 +67,68 @@
 	</target>
 	<target name="archive" depends="compile">
 		
-		<buildnumber file="/ubc/cs/project/arrow/seramage/software/build-numbers/buildnumber-${ant.project.name}"/>
-		<property name="version.devstring" value="v${version.major}.${version.minor}.${version.revision}dev-${build.number}"/>
-		<property name="version.string" value="v${version.major}.${version.minor}.${version.revision}${version.beta}-${build.number}"/>
-		<echo file="${version.file.dev}">${version.devstring}</echo>
+		<buildnumber file="${buildnumberpath}/buildnumber-${ant.project.name}"/>
+		<property name="version.string" value="v${version.major}.${version.minor}.${version.revision}${version.beta}-${git.branch}-${build.number}"/>
+		<property name="version.devstring" value="v${version.major}.${version.minor}.${version.revision}dev-${git.branch}-${build.number}"/>
+		<echo file="${version.file.dev}">${version.devstring} ${git.shortcommit}</echo>
+		<echo file="build/classes/${version.file}">${version.string} (${git.shortcommit})</echo>
+		
+		<property name="outputfilename" value="${ant.project.name}-${version.string}"/>
+		<jar destfile="dist/${ant.project.name}.jar" basedir="build/classes"/>
+		
+		<echo file="dist/git-hashes.txt">${ant.project.name} ${git.commit} ${git.dirty}</echo>
+		<echo file="dist/git-hashes.tex" append="true">${ant.project.name} &amp; ${version.string} &amp; ${git.commit} &amp; ${git.dirty} \\
+\hline
+</echo>
+		
 		<copy todir="dist/">
-			<fileset refid="lib"/>	
+					<fileset refid="lib"/>	
 		</copy>
-		<echo file="build/classes/${version.file}">${version.string}</echo>
 		<jar destfile="dist/fastrf.jar" basedir="build/classes"/>
 		<jar destfile="dist/fastrf-src.jar">
 			<fileset dir="src/">
 				 <include name="**/*.java"/>
 			</fileset>
 		</jar>
-	</target>			
-	<target name="deploy" depends="archive">
 		
-		<fail message="Cannot deploy a build for the git master branch if it is dirty">
+	</target>		
+			
+	<target name="zip" depends="archive" description="Makes tarball for this release">
+				
+
+		<fail message="Cannot deploy a build for the git master branch if it is dirty, please commit all changes">
 			<condition>
 				<and>
-				<equals arg1="${git.branch}" arg2="development" casesensitive="false" trim="true"/>
+				<equals arg1="${git.branch}" arg2="master" casesensitive="false" trim="true"/>
 				<equals arg1="${git.dirty}" arg2="1" casesensitive="false" trim="true"/>
 				</and>
 			</condition>
 		</fail>
-		
-		
-		<mkdir dir="${deploy.dir}"/>
-		<chmod perm="666">
-			<fileset dir="${deploy.dir}">
-				<include name="*"/>
-			</fileset>
-		</chmod>
-		<copy todir="${deploy.dir}" force="true">
-			<fileset dir="dist/">
-				<include name="*"/>
-			</fileset>
-		</copy>
-		<chmod perm="444">
-				<fileset dir="${deploy.dir}">
-						<include name="*"/>
-				</fileset>
-		</chmod>
-		<chmod perm="555">
-				<fileset dir="${deploy.dir}">
-						<include name="*.sh"/>
-				</fileset>
-		</chmod>
+					
+		<tar destFile="${software.dir}/${outputfilename}.tar.gz" longfile="gnu" compression="gzip">
+				<tarfileset dir="dist/" filemode="750" prefix="${outputfilename}/">
+										<include name="mysql-worker"/>
+					</tarfileset>
+			<tarfileset dir="dist/" filemode="640" dirmode="750" prefix="${outputfilename}/">
+						<include name="**/*"/>
+						<exclude name="${lastdeployfile}"/> 
+						<exclude name="mysql-worker"/>
+					</tarfileset>
+					
+		</tar>
 	</target>
+	
+	
+	<target name="deploy-release" depends="zip" description="untars tarball in software.dir and creates symlink">
+			
+				<exec executable="tar" dir="${software.dir}" failonerror="true">
+					<arg value="-xzf"/>
+					<arg value="${software.dir}/${outputfilename}.tar.gz"/>
+				</exec>
+					
+				<symlink link="${deploy.dir}-${git.branch}" overwrite="true" resource="${software.dir}/${ant.project.name}-${version.string}" failonerror="false"/>
+				<echo>Untar Successful to ${software.dir}/${outputfilename}</echo>
+	</target>
+	<target name="deploy" depends="zip, deploy-release"/>
+	
 </project>
