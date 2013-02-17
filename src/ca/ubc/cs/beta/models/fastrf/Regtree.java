@@ -1,6 +1,19 @@
 package ca.ubc.cs.beta.models.fastrf;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.TreeSet;
+import java.util.Vector;
+
+import javax.management.RuntimeErrorException;
+
+import sun.nio.cs.ext.ISCII91;
 
 import ca.ubc.cs.beta.models.fastrf.utils.Utils;
 import static ca.ubc.cs.beta.models.fastrf.utils.Hash.*;
@@ -29,12 +42,25 @@ public strictfp class Regtree implements java.io.Serializable {
     public double[] weightedvar;
     public double[] weights;
     
-    public int logModel;
-
+    public boolean preprocessed_for_classification;
+    public double[][] bestClasses;
+    
+    public double[][] leafContLB;
+    public double[][] leafContUB;
+    public Set<Integer>[][] leafallCatValues;
+    public double[][] leafDomainPercentage;
+    public Vector<Integer> leafIndices;
+    public boolean leafInfoIsPrecomputed = false;
+    public boolean[] isCatDimension;
+    public int[] categoricalDomainSizes;
+    
+    public int logModel;   
+    
     public Regtree(int numNodes, int logModel) {
         this.numNodes = numNodes;
         this.logModel = logModel;
         preprocessed = false;
+        preprocessed_for_classification = false;
     }
     
     
@@ -238,6 +264,26 @@ public strictfp class Regtree implements java.io.Serializable {
     }
     
     /**
+     * Classifies the given instantiations of features
+     * @returns a matrix of size X.length where index i contains the 
+     * most popular response for X[i]
+     */
+    public static double[] classify(Regtree tree, double[][] X) {
+        if (!tree.preprocessed_for_classification) {
+            RegtreeFwd.preprocess_for_classification(tree);
+        }
+        
+        int[] nodes = RegtreeFwd.fwd(tree, X);
+        
+        double[] retn = new double[X.length];
+        for (int i=0; i < X.length; i++) {
+            double[] best = tree.bestClasses[nodes[i]];
+            retn[i] = best[(int)(Math.random() * best.length)];
+        }
+        return retn;
+    }
+    
+    /**
      * Gets a prediction for the given configurations and instances
      * @see RegtreeFwd.marginalFwd
      */
@@ -324,5 +370,391 @@ public strictfp class Regtree implements java.io.Serializable {
             nodepred[node] = sum/N;
             nodevar[node] = (sumOfSq - sum*sum/N) / Math.max(N-1, 1);
         }
+    }
+    
+    
+    /**
+     * Compute integral of (f-\bar{f})^2 across all values for all unobserved dimensions.
+     */
+    public void verifyInputsAreConsistent(int[] indicesOfObservations, double[] observations){
+    	if (!leafInfoIsPrecomputed){
+    		throw new RuntimeException("Leaf info has to be precomputed before predicting marginal performance.");
+    	}
+    	
+    	//=== Verify that inputs are consistent.
+    	if(indicesOfObservations.length != observations.length){
+    		throw new IllegalArgumentException("indicesOfObservations and observations vectors must be of same length");
+    	}
+    	for (int j=0; j<observations.length; j++){
+    		int index = indicesOfObservations[j];
+    		if (isCatDimension[index]){
+    			int value = (int) observations[j];
+				if(Math.abs(observations[j] - value) > 1e-6){
+					throw new IllegalArgumentException("Dimension " + indicesOfObservations[j] + " must be categorical.");
+				}
+				if (value < 0 || value >= categoricalDomainSizes[index]){
+					throw new IllegalArgumentException("Dimension " + indicesOfObservations[j] + " is categorical with domain size " + categoricalDomainSizes[index] + ", but the input value passed was " + value + ". Note that this is 0-indexed.");
+				}
+    		}
+    	}    	
+    }
+    
+    /** 
+     * Compute probability of data point falling into this leaf conditional on the dimensions in vector dimensions agreeing with the leaf.
+     */
+    private double probabilityOfLeafForRemainingDimensions(int[] dimensions, int leafIdx){
+		Set<Integer> dimensionIndexSet = new HashSet<Integer>();
+		for(int i=0; i<dimensions.length; i++){
+			dimensionIndexSet.add(dimensions[i]); // for some reason the following failed, and so did Arrays.asList: Collections.addAll(observedIndexSet, indicesOfObservations); 
+		}
+		return probabilityOfLeafForRemainingDimensions(dimensionIndexSet, leafIdx);
+    }
+
+    /** 
+     * Compute probability of data point falling into this leaf conditional on the dimensions in vector dimensions agreeing with the leaf.
+     */
+    private double probabilityOfLeafForRemainingDimensions(Set<Integer> dimensionIndexSet, int leafIdx){
+		double p = 1;
+		for (int j=0; j<isCatDimension.length; j++){
+			if(dimensionIndexSet.contains(j)) continue;
+			p = p*leafDomainPercentage[leafIdx][j];
+		}
+		return p;
+    }
+    
+    /**
+     * Checks whether the observations are consistent with the given leaf.
+     */
+    public boolean observationsAreConsistentWithLeaf(int[] indicesOfObservations, double[] observations, int leafIdx){
+    	if (indicesOfObservations == null && observations == null){
+    		return true;
+    	}
+    	
+    	//=== Iterate over observations, and check one at a time, depending on whether it's continuous or categorical.
+		for (int j=0; j<indicesOfObservations.length; j++){
+			int o = indicesOfObservations[j];
+			if (isCatDimension[o]){
+				int value = (int) observations[j];
+				assert(Math.abs(observations[j] - value) < 1e-6); // assert this is indeed categorical!
+				
+				if (!leafallCatValues[leafIdx][o].contains(value)){
+					return false;
+				}
+			} else {
+				double value = observations[j];
+				if (value < leafContLB[leafIdx][o] || leafContUB[leafIdx][o] < value){
+					return false;
+				}
+			}
+		}
+		return true;
+    }
+    
+    public static Set<HashSet<Integer>> powerSet(Set<Integer> originalSet) {
+        Set<HashSet<Integer>> setOfSubsets = new HashSet<HashSet<Integer>>();
+        if (originalSet.isEmpty()) {
+        	setOfSubsets.add(new HashSet<Integer>());
+            return setOfSubsets;
+        }
+        List<Integer> originalList = new ArrayList<Integer>(originalSet);
+        Integer head = originalList.get(0);
+        Set<Integer> rest = new HashSet<Integer>(originalList.subList(1, originalList.size()));
+        for (HashSet<Integer> subset: powerSet(rest)) {
+            setOfSubsets.add(subset);
+            HashSet<Integer> subsetPlusHead = new HashSet<Integer>();
+            subsetPlusHead.add(head);
+            subsetPlusHead.addAll(subset);
+            setOfSubsets.add(subsetPlusHead);
+        }
+        return setOfSubsets;
+    }
+    
+    /**
+     * Compute \int f_S^2 dx_S. (\bar{f} is guaranteed to be zero)
+     */
+    public double computeFactorVariance(int[] indicesOfObservations, double[] observations, HashSet<Integer> indicesOfFactor, HashMap<Set<Integer>,Double> precomputedFactorVariance){
+    	System.out.println("Computing factorVariance for " + indicesOfFactor + " ... ");
+    	if (indicesOfFactor.isEmpty()) return 0;
+    	if (precomputedFactorVariance.containsKey(indicesOfFactor)){
+    		return precomputedFactorVariance.get(indicesOfFactor);
+    	}
+    	double totalVariance = computeTotalVariance(indicesOfObservations, observations, indicesOfFactor);
+    	System.out.println("Total variance for " + indicesOfFactor + " is " + totalVariance);
+
+    	Set<HashSet<Integer>> setOfSubsets = powerSet(indicesOfFactor);
+    	setOfSubsets.remove(indicesOfFactor); // only look at strict subsets
+    	for (HashSet<Integer> subset: setOfSubsets) {
+    		double subFactorVariance = computeFactorVariance(indicesOfObservations, observations, subset, precomputedFactorVariance); 
+    		totalVariance -= subFactorVariance;
+	    	System.out.println("Subtracting subFactorVariance " + subFactorVariance);
+		}
+    	Set<Integer> copyOfIndicesOfFactorForSaving = new HashSet<Integer>();
+    	copyOfIndicesOfFactorForSaving.addAll(indicesOfFactor);
+    	precomputedFactorVariance.put(copyOfIndicesOfFactorForSaving, totalVariance);
+    	return totalVariance;
+    }
+    
+    
+    public double computeProperTotalVariance(){
+    	double totalVariance = 0;
+    	int dim = isCatDimension.length;
+    	for (int tmp1=0; tmp1<leafIndices.size(); tmp1++) {
+    		int i = leafIndices.get(tmp1);
+        	for (int tmp2=0; tmp2<leafIndices.size(); tmp2++) {
+        		int j = leafIndices.get(tmp2);
+
+				double probBothLeaves = 1;
+	        	for (int d=0; d<dim; d++){
+	            	if (isCatDimension[d]){
+	            		Set<Integer> intersection = new HashSet<Integer>();
+	            		intersection.addAll(leafallCatValues[i][d]);
+	            		intersection.retainAll(leafallCatValues[j][d]);
+	            		probBothLeaves *= (intersection.size()+0.0)/categoricalDomainSizes[d];
+	            	} else {
+	            		double lower = Math.max(leafContLB[i][d], leafContLB[j][d]);
+	            		double upper = Math.min(leafContUB[i][d], leafContUB[j][d]);
+	                	probBothLeaves *= (upper-lower);            		
+	            	}
+	            	if (probBothLeaves <= 0){ // could be < 0 if upper < lower
+	            		probBothLeaves = 0;
+	            		break;
+	            	}
+	        	}
+	        	//if (probBothLeaves > 0) System.out.println("Leaves " + i + " and " + j + ": " + probBothLeaves);
+				totalVariance += probBothLeaves * nodepred[i] * nodepred[j] * weights[i] * weights[j];
+			}
+		}
+    	
+    	double a_0 = 0;
+    	for(Integer leafIdx:leafIndices){
+    		//=== Next, compute the product of weights in this leaf for (a) the dims in the factor, and (b) the other dims.
+    		double pThisFactor = probabilityOfLeafForRemainingDimensions(new TreeSet<Integer>(), leafIdx);
+    		double value = weights[leafIdx] * nodepred[leafIdx];
+    		a_0 += pThisFactor * value;
+    	}
+    	
+    	return totalVariance - Math.pow(a_0,2);
+    }
+        
+    
+    /**
+     * Compute \int (a_S-a_0)^2 dx_S, where S here is indicesOfFactor
+     * TODO: I think this only works if indicesOfObservations and indicesOfFactor are disjoint.
+     * TODO: do we divide by the right thing? Only consistent leaves?
+     */
+    public double computeTotalVariance(int[] indicesOfObservations, double[] observations, HashSet<Integer> indicesOfFactor){
+    	if (indicesOfObservations != null && indicesOfObservations.length > 0){
+        	verifyInputsAreConsistent(indicesOfObservations, observations);
+    		throw new RuntimeException("observations not quite supported yet...");
+    	}
+
+		HashSet<Integer> indicesNotInFactor = new HashSet<Integer>();
+		for( int i=0; i< isCatDimension.length; i++ ){
+			indicesNotInFactor.add(i);
+		}
+		indicesNotInFactor.removeAll(indicesOfFactor);
+
+    	double a_0 = 0;
+    	for(Integer leafIdx:leafIndices){
+    		if (!observationsAreConsistentWithLeaf(indicesOfObservations, observations, leafIdx)){
+    			continue;
+    		}		
+    		//=== Next, compute the product of weights in this leaf for (a) the dims in the factor, and (b) the other dims.
+    		double pThisFactor = probabilityOfLeafForRemainingDimensions(indicesNotInFactor, leafIdx);
+    		double pRemainingVars=probabilityOfLeafForRemainingDimensions(indicesOfFactor, leafIdx);
+    		double value = pRemainingVars * weights[leafIdx] * nodepred[leafIdx];
+    		a_0 += pThisFactor * value;
+    	}
+//    	System.out.println("Average response a_0: " + a_0);
+    	
+    	double totalVariance = 0;
+    	for(Integer leafIdx:leafIndices){
+    		//=== Next, compute the product of weights in this leaf for (a) the dims in the factor, and (b) the other dims.
+    		double pThisFactor = probabilityOfLeafForRemainingDimensions(indicesNotInFactor, leafIdx);
+    		double pRemainingVars=probabilityOfLeafForRemainingDimensions(indicesOfFactor, leafIdx);
+    		double value = pRemainingVars * weights[leafIdx] * nodepred[leafIdx];
+        	System.out.println("Leaf " + leafIdx + ": weight=" + weights[leafIdx] + ", nodepred=" + nodepred[leafIdx] + ", value=" + value + ", a_0=" + a_0 + ", pThisFactor=" + pThisFactor + ", pRemainingVars=" + pRemainingVars);
+    		totalVariance += pThisFactor*pRemainingVars * Math.pow(value-a_0,2);
+    	}
+
+    	return totalVariance;
+    }
+    
+    
+    /**
+     * Compute marginal performance across unobserved dimensions.
+     * 
+     */
+    public double marginalPerformance(int[] indicesOfObservations, double[] observations){
+    	verifyInputsAreConsistent(indicesOfObservations, observations);
+    	
+    	double result = 0;
+//		for(int i=0; i<indicesOfObservations.length; i++){
+//			System.out.println("Observed index set: " + indicesOfObservations[i]);
+//		}
+		
+		double sumOfP = 0;
+		double sumOfWeights = 0;
+		int numConsistent = 0;
+    	for(Integer leafIdx:leafIndices){
+    		if (!observationsAreConsistentWithLeaf(indicesOfObservations, observations, leafIdx)){
+    			continue;
+    		}
+//    		System.out.println("Consistent with leaf " + leafIdx);
+    		numConsistent ++;
+
+    		//=== Next, compute the product of weights in this leaf for the remaining dimensions.
+    		double p=probabilityOfLeafForRemainingDimensions(indicesOfObservations, leafIdx);
+    		
+    		double pred = nodepred[leafIdx];
+    		//if (logModel > 0){
+    		//	result += p * Math.pow(10, pred);
+    		//} else {
+    			result += p * weights[leafIdx] * pred;
+    		//}
+    		sumOfP += p;
+    		sumOfWeights += weights[leafIdx];
+//    		System.out.println(" leafIdx " + leafIdx + ": weight=" + weights[leafIdx] + ", p=" + p + ", pred=" + pred);
+    	}
+//    	System.out.println("Total p: " + sumOfP + ", numConsistent=" + numConsistent + "/" + leafIndices.size() + ", sumOfWeights=" + sumOfWeights + ".");
+
+//		if (logModel > 0){
+//			System.out.println("logModel = " + logModel);
+//			result = Math.log10(result);
+//		}
+
+    	return result;
+    }
+    
+    /**
+     * Precompute which ranges of parameters fall into which leaves.
+     * isCat holds a Boolean for each of dim dimensions, true for categorical and false for continuous parameters
+     * allCatValues is dim-dimensional, holding empty sets for continuous dimensions and values 0,...,k-1 for categorical dimensions of domainSize k 
+     * contLB and contUB are dim-dimensional, holding 0 for categorical dimensions
+     */
+    public void precomputeLeafInfo(boolean[] isCat, HashSet<Integer>[] allCatValues, double[] contLB, double[] contUB){
+    	isCatDimension = isCat;
+    	int dim = isCat.length;
+    	leafIndices = new Vector<Integer>();
+    	categoricalDomainSizes = new int[dim];
+    	for (int i=0; i<dim; i++){
+    		if( allCatValues[i] == null ){
+    			categoricalDomainSizes[i] = 0;
+    		} else {
+    			categoricalDomainSizes[i] = allCatValues[i].size();
+    		}
+    	}
+        
+    	//=== Initialize the results of this precomputation.
+        leafContLB = new double[numNodes][dim];
+        leafContUB = new double[numNodes][dim];
+        leafallCatValues = new Set[numNodes][dim];
+        leafDomainPercentage = new double[numNodes][dim];
+        for (int i = 0; i < numNodes; i++) {
+        	leafContLB[i] = new double[dim];
+        	leafContUB[i] = new double[dim];
+        	leafallCatValues[i] = new Set[dim];
+        	leafDomainPercentage[i] = new double[dim];
+		}
+        
+        precomputeLeafInfoInSubtree(0, isCat, allCatValues, contLB, contUB);
+        leafInfoIsPrecomputed = true;
+    }
+    
+    /**
+     * Recursive method doing the work for precomputeLeafInfo.
+     */
+    private void precomputeLeafInfoInSubtree(int thisnode, boolean[] isCat, HashSet<Integer>[] allCatValues, double[] contLB, double[] contUB){
+//    	System.out.println("Preprocessing node " + thisnode);
+    	int splitvar = var[thisnode];
+    	
+    	if (splitvar == 0) {
+    		//=== Node thisnode is a leaf -> save statistics.
+        	leafIndices.add(thisnode);
+        	int dim = isCat.length;
+        	leafallCatValues[thisnode] = allCatValues;
+        	for (int i=0; i<dim; i++){
+            	leafContLB[thisnode][i] = contLB[i];
+            	leafContUB[thisnode][i] = contUB[i];
+//            	leafallCatValues[thisnode][i] = (Set<Integer>) allCatValues[i].clone();
+            	if (isCat[i]){
+            		leafDomainPercentage[thisnode][i] = (allCatValues[i].size()+0.0) / categoricalDomainSizes[i]; 
+            	} else {
+                	leafDomainPercentage[thisnode][i] = contUB[i]-contLB[i];            		
+            	}
+        	}
+        	
+//        	System.out.println("Saving leafDomainPercentage in leaf " + thisnode + " for first param: " + leafDomainPercentage[thisnode][0]);
+    	} else {
+    		//=== Double-check that we have categorical variables right.
+    		if (splitvar>0){
+    			assert(!isCat[splitvar]);
+    		} else {
+    			assert(isCat[-splitvar]);
+    		}
+    		
+            int left_kid = children[thisnode][0];
+            int right_kid = children[thisnode][1];
+            
+            if (Math.abs(splitvar) > isCat.length){
+            	//=== This is a split on an instance feature -> we recurse left and right with the same inputs.
+                precomputeLeafInfoInSubtree(left_kid,  isCat, allCatValues, contLB, contUB);
+                precomputeLeafInfoInSubtree(right_kid, isCat, allCatValues, contLB, contUB);
+            	
+            } else {
+            	//=== This is a split on a parameter value -> we split the domain of that parameter.
+            	
+	            double cutoff = cut[thisnode];
+	            if (splitvar > 0) { 
+	                //=== We're splitting on a continuous variable.
+	                int v = splitvar-1;
+	                
+	                //=== Recurse to left child.
+	                double previousUB = contUB[splitvar-1]; // save previous upper bound
+	                contUB[v] = cutoff;
+	                precomputeLeafInfoInSubtree(left_kid, isCat, allCatValues, contLB, contUB);
+	                contUB[v] = previousUB;                 // restore previous upper bound
+	                
+	                //=== Recurse to right child.
+	                double previousLB = contLB[splitvar-1];
+	                contLB[v] = cutoff;
+	                precomputeLeafInfoInSubtree(right_kid, isCat, allCatValues, contLB, contUB);
+	                contLB[v] = previousLB;
+	                
+	            } else { 
+	            	//=== We're splitting on a categorical variable.
+	            	int v = -splitvar-1;
+	            	HashSet<Integer> thisValues = allCatValues[v];
+	            	HashSet<Integer> leftValues = new HashSet<Integer>();
+	            	HashSet<Integer> rightValues = new HashSet<Integer>();
+	            	
+	            	//=== Split values into left and right kid.
+	            	for( Integer thisValue:thisValues ){
+	            		int split = catsplit[(int)cutoff][thisValue]; 
+	            		if(split==0){
+	            			leftValues.add(thisValue);
+	            		} else if (split==1){
+	            			rightValues.add(thisValue);
+	            		} else {
+	            			throw new IllegalStateException("Error in node " + thisnode + ": catsplit does not state which kid to propagate value " + thisValue + " to. Note that input allCatValues should be 0-indexed!");
+	            		}
+	            	}
+//            		System.out.println("Left values: " + leftValues);
+//            		System.out.println("Right values: " + rightValues);
+	            	
+//            		System.out.println("Left recursion for parameter " + v + " (0-indexed) with values " + leftValues);
+	            	//=== Recurse to left kid.
+	            	HashSet<Integer>[] allLeftValues = allCatValues.clone(); 
+	            	allLeftValues[v] = leftValues;
+	                precomputeLeafInfoInSubtree(left_kid, isCat, allLeftValues, contLB, contUB);
+	
+//            		System.out.println("Right recursion for parameter " + v + " (0-indexed) with values " + rightValues);
+	            	//=== Recurse to right kid.
+	                HashSet<Integer>[] allRightValues = allCatValues.clone(); 
+	            	allRightValues[v] = rightValues;
+	                precomputeLeafInfoInSubtree(right_kid, isCat, allRightValues, contLB, contUB);
+	            }
+            }
+    	}
     }
 }

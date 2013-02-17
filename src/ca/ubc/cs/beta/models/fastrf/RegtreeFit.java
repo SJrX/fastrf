@@ -66,8 +66,7 @@ public strictfp class RegtreeFit {
 	private static int numright;
 	private static int[] leftside;
 	private static int[] rightside;
-    
-	
+    	
     /**
      * Fits a regression tree.
      * @params allTheta, allX: matrices of all of the configurations/instances
@@ -182,7 +181,7 @@ public strictfp class RegtreeFit {
         //System.out.println("cens:" + Arrays.toString(cens));
 */
         if (catDomainSizes != null && catDomainSizes.length != nvars) {
-            throw new RuntimeException("catDomainSizes must be of the same length as size(X, 2)");
+            throw new RuntimeException("catDomainSizes must be of the same length as size(X, 2), i.e. " + nvars + ", but is " + catDomainSizes.length);
         }
         int maxDomSize = 0;
         for (int i=0; i < nvars; i++) {
