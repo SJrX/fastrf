@@ -2,18 +2,12 @@ package ca.ubc.cs.beta.models.fastrf;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.TreeSet;
 import java.util.Vector;
-
-import javax.management.RuntimeErrorException;
-
-import sun.nio.cs.ext.ISCII91;
 
 import ca.ubc.cs.beta.models.fastrf.utils.Utils;
 import static ca.ubc.cs.beta.models.fastrf.utils.Hash.*;
