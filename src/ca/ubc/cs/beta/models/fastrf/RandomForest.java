@@ -97,7 +97,7 @@ public strictfp class RandomForest implements java.io.Serializable {
                 dataIdxs[i][j] = r.nextInt(N);
             }
         }
-        
+        /*
         if(RoundingMode.ROUND_NUMBERS_FOR_MATLAB_SYNC)
         {
         
@@ -123,6 +123,7 @@ public strictfp class RandomForest implements java.io.Serializable {
 	     	}
 	   	   System.out.println("y" + Arrays.toString(y));
         }
+        */
         return learnModel(numTrees, allTheta, allX, theta_inst_idxs, y, dataIdxs, params);
     }
     
