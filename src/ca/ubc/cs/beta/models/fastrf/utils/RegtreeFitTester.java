@@ -6,6 +6,7 @@ import java.io.ObjectInputStream;
 
 public class RegtreeFitTester {
 	
+	@SuppressWarnings("unused")
 	public static void main(String [] args) {
 		 DebugTreeBuildInputs t = null;
 	     try {

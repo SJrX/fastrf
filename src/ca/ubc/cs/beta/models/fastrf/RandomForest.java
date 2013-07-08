@@ -436,7 +436,7 @@ public strictfp class RandomForest implements java.io.Serializable {
 		System.out.println(Arrays.deepEquals(dataIdxs, dataIdxs2));
 		System.out.println("e");
 		
-		RegtreeBuildParams params = (RegtreeBuildParams) in.readObject();
+		//RegtreeBuildParams params = (RegtreeBuildParams) in.readObject();
 		
 		in.close();
 		in2.close();
@@ -554,7 +554,8 @@ public strictfp class RandomForest implements java.io.Serializable {
      * y values may vary 
      * @see RegtreeFit.fit
      */
-    public static RandomForest learnModelImputedValues(int numTrees, double[][] allTheta, double[][] allX, int[][] theta_inst_idxs, double[][] y, int[][] dataIdxs, RegtreeBuildParams params) {
+    @SuppressWarnings("unused")
+	public static RandomForest learnModelImputedValues(int numTrees, double[][] allTheta, double[][] allX, int[][] theta_inst_idxs, double[][] y, int[][] dataIdxs, RegtreeBuildParams params) {
     	/*
     	fixInputs(allTheta);
 		fixInputs(y);
@@ -853,7 +854,7 @@ public strictfp class RandomForest implements java.io.Serializable {
         for (int i=0; i < nTrees; i++) {
             Object[] result = RegtreeFwd.marginalFwd(forest.Trees[tree_idxs_used[i]], Theta, X);
             double[] preds = (double[])result[0];
-            double[] vars = (double[])result[1];
+            //double[] vars = (double[])result[1];
 
             for (int j=0; j < nTheta; j++) {
                 double pred = preds[j];

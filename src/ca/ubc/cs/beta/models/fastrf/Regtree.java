@@ -103,7 +103,8 @@ public strictfp class Regtree implements java.io.Serializable {
     
     
     
-    public int hashCode()
+    @SuppressWarnings("unused")
+	public int hashCode()
     {
     	
     	//if (true) throw new IllegalStateException("");
@@ -579,7 +580,8 @@ public strictfp class Regtree implements java.io.Serializable {
      * Compute marginal performance across unobserved dimensions.
      * 
      */
-    public double marginalPerformance(int[] indicesOfObservations, double[] observations){
+    @SuppressWarnings("unused")
+	public double marginalPerformance(int[] indicesOfObservations, double[] observations){
     	verifyInputsAreConsistent(indicesOfObservations, observations);
     	
     	double result = 0;
@@ -590,6 +592,7 @@ public strictfp class Regtree implements java.io.Serializable {
 		double sumOfP = 0;
 		double sumOfWeights = 0;
 		int numConsistent = 0;
+		
     	for(Integer leafIdx:leafIndices){
     		if (!observationsAreConsistentWithLeaf(indicesOfObservations, observations, leafIdx)){
     			continue;
@@ -626,7 +629,9 @@ public strictfp class Regtree implements java.io.Serializable {
      * allCatValues is dim-dimensional, holding empty sets for continuous dimensions and values 0,...,k-1 for categorical dimensions of domainSize k 
      * contLB and contUB are dim-dimensional, holding 0 for categorical dimensions
      */
-    public void precomputeLeafInfo(boolean[] isCat, HashSet<Integer>[] allCatValues, double[] contLB, double[] contUB){
+    
+	@SuppressWarnings("unchecked")
+	public void precomputeLeafInfo(boolean[] isCat, HashSet<Integer>[] allCatValues, double[] contLB, double[] contUB){
     	isCatDimension = isCat;
     	int dim = isCat.length;
     	leafIndices = new Vector<Integer>();
