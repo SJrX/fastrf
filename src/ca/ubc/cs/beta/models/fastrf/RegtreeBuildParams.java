@@ -104,4 +104,29 @@ public strictfp class RegtreeBuildParams implements java.io.Serializable {
 	public void setLogModel(int logModel) {
 		this.logModel = logModel;
 	}
+
+	public static RegtreeBuildParams copy(RegtreeBuildParams bp, int size)
+	{
+			RegtreeBuildParams bpNew = new RegtreeBuildParams();
+			
+			bpNew.logModel = bp.logModel;
+			bpNew.brokenVarianceCalculation = bp.brokenVarianceCalculation;
+			
+			bpNew.catDomainSizes = new int[size];
+			bpNew.condParents = new int[size][];
+			bpNew.condParentVals = new int[size][][];
+			System.arraycopy(bp.catDomainSizes, 0,bpNew.catDomainSizes, 0, size);
+			System.arraycopy(bp.condParents, 0,bpNew.condParents, 0, size);
+			System.arraycopy(bp.condParentVals, 0,bpNew.condParentVals, 0, size);
+		
+			bpNew.random = bp.random;
+			bpNew.ratioFeatures = bp.ratioFeatures;
+			bpNew.minVariance = bp.minVariance;
+			bpNew.splitMin = bp.splitMin;
+			bpNew.storeResponses = bp.storeResponses;
+			
+			bpNew.seed = bp.seed;
+			return bpNew;
+	}
+	
 }
