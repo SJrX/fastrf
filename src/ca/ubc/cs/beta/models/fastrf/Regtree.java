@@ -2,18 +2,12 @@ package ca.ubc.cs.beta.models.fastrf;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.TreeSet;
 import java.util.Vector;
-
-import javax.management.RuntimeErrorException;
-
-import sun.nio.cs.ext.ISCII91;
 
 import ca.ubc.cs.beta.models.fastrf.utils.Utils;
 import static ca.ubc.cs.beta.models.fastrf.utils.Hash.*;
@@ -109,7 +103,8 @@ public strictfp class Regtree implements java.io.Serializable {
     
     
     
-    public int hashCode()
+    @SuppressWarnings("unused")
+	public int hashCode()
     {
     	
     	//if (true) throw new IllegalStateException("");
@@ -585,7 +580,8 @@ public strictfp class Regtree implements java.io.Serializable {
      * Compute marginal performance across unobserved dimensions.
      * 
      */
-    public double marginalPerformance(int[] indicesOfObservations, double[] observations){
+    @SuppressWarnings("unused")
+	public double marginalPerformance(int[] indicesOfObservations, double[] observations){
     	verifyInputsAreConsistent(indicesOfObservations, observations);
     	
     	double result = 0;
@@ -596,6 +592,7 @@ public strictfp class Regtree implements java.io.Serializable {
 		double sumOfP = 0;
 		double sumOfWeights = 0;
 		int numConsistent = 0;
+		
     	for(Integer leafIdx:leafIndices){
     		if (!observationsAreConsistentWithLeaf(indicesOfObservations, observations, leafIdx)){
     			continue;
@@ -632,7 +629,9 @@ public strictfp class Regtree implements java.io.Serializable {
      * allCatValues is dim-dimensional, holding empty sets for continuous dimensions and values 0,...,k-1 for categorical dimensions of domainSize k 
      * contLB and contUB are dim-dimensional, holding 0 for categorical dimensions
      */
-    public void precomputeLeafInfo(boolean[] isCat, HashSet<Integer>[] allCatValues, double[] contLB, double[] contUB){
+    
+	@SuppressWarnings("unchecked")
+	public void precomputeLeafInfo(boolean[] isCat, HashSet<Integer>[] allCatValues, double[] contLB, double[] contUB){
     	isCatDimension = isCat;
     	int dim = isCat.length;
     	leafIndices = new Vector<Integer>();
