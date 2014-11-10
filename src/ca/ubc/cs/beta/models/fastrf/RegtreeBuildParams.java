@@ -1,5 +1,6 @@
 package ca.ubc.cs.beta.models.fastrf;
 
+import java.util.Map;
 import java.util.Random;
 import java.util.Arrays;
 
@@ -21,6 +22,11 @@ public strictfp class RegtreeBuildParams implements java.io.Serializable {
 	public int[] catDomainSizes;
     public int[][] condParents = null;
     public int[][][] condParentVals = null;
+    
+    public int[] activeCheckOrderArray;
+    public Map<Integer, int[][]> nameConditionsMapParentsArray;
+    public Map<Integer, double[][][]> nameConditionsMapParentsValues;
+    public Map<Integer, int[][]> nameConditionsMapOp;
     
     public double minVariance;
     public String toString()

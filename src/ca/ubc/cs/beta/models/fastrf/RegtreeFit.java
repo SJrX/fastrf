@@ -383,6 +383,86 @@ public strictfp class RegtreeFit {
             if (impure && Nnode >= splitMin) { // split only impure nodes with more than a threshold of uncensored values
                 //=== Start: handle conditional parameters. 
                 int nvarsenabled = 0; // #variables that are active for sure given the variable instantiations up to the root 
+                if (params.nameConditionsMapParentsArray == null || params.nameConditionsMapParentsArray.isEmpty()) {
+                    nvarsenabled = nvars;
+                    for (int i=0; i < nvars; i++) {
+                        randomPermutation[i] = i;
+                    }
+                } else {
+                	int loop_idx = 0;
+                	for(int idx : params.activeCheckOrderArray) {
+                		boolean fullfill_disj = false;
+                		if (params.nameConditionsMapParentsArray.get(idx) == null) {
+                			randomPermutation[loop_idx] = idx;
+                			loop_idx++;
+                			continue;
+                		}
+                		for(int i=0; i < params.nameConditionsMapParentsArray.get(idx).length; i++) {
+                			boolean fullfill_clause = true;
+                			for(int j=0; j < params.nameConditionsMapParentsArray.get(idx)[i].length; j++) {
+                				int parent_idx = params.nameConditionsMapParentsArray.get(idx)[i][j];
+                				double[] values = params.nameConditionsMapParentsValues.get(idx)[i][j];
+                				int op = params.nameConditionsMapOp.get(idx)[i][j];
+                				//TODO: should also return doubles for continuous parameters
+                				int[] compatibleValues = getCompatibleValues(tnode, parent_idx, N, parent, cutvar, cutpoint, leftchildren, rightchildren, catsplit, catDomainSizes);
+                				
+                				boolean fullfill_cond = true;
+            					for(int cv : compatibleValues) {
+            						boolean isok = false;
+            						if (op == 0) { //EQ
+            							double ov = values[0]; 
+            							if (cv == ov) {
+                							isok = true;
+                						}
+            						}
+            						if (op == 1) { //NEQ
+            							double ov = values[0]; 
+            							if (cv != ov) {
+                							isok = true;
+                						}
+            						}
+            						if (op == 2) { //LE
+            							double ov = values[0]; 
+            							if (cv < ov) {
+                							isok = true;
+                						}
+            						}
+            						if (op == 3) { //GR
+            							double ov = values[0]; 
+            							if (cv > ov) {
+                							isok = true;
+                						}
+            						}
+            						if (op == 4) { //IN
+            							for (double ov: values) {
+            								if (cv == ov) {
+                    							isok = true;
+                    							break;
+                    						}
+            							}
+            						}
+            						if (!isok) {
+            							fullfill_cond = false;
+            							break;
+            						}
+            					}
+            					
+            					if (!fullfill_cond) {
+            						fullfill_clause = false;
+            					}
+                			}
+                			if (fullfill_clause) {
+                				fullfill_disj = true;
+                			}
+                		}
+                		if (fullfill_disj) {
+                			randomPermutation[loop_idx] = idx;
+                		}
+                		loop_idx++;
+                	}
+                }
+                
+                
                 if (condParents == null) {
                     nvarsenabled = nvars;
                     for (int i=0; i < nvars; i++) {
