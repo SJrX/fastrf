@@ -404,7 +404,14 @@ public strictfp class RegtreeFit {
                 				double[] values = params.nameConditionsMapParentsValues.get(idx)[i][j];
                 				int op = params.nameConditionsMapOp.get(idx)[i][j];
                 				//TODO: should also return doubles for continuous parameters
-                				int[] compatibleValues = getCompatibleValues(tnode, parent_idx, N, parent, cutvar, cutpoint, leftchildren, rightchildren, catsplit, catDomainSizes);
+                				// how to decide whether a variable is categorical:
+                				boolean is_nextvar_cat = (catDomainSizes[idx] != 0);
+                				int[] compatibleValues = null;
+                				if (is_nextvar_cat) {
+                					compatibleValues = getCompatibleValues(tnode, parent_idx, N, parent, cutvar, cutpoint, leftchildren, rightchildren, catsplit, catDomainSizes);}
+                				else {
+                					double[] compatbileRange = getCompatibleRange(tnode, parent_idx, N, parent, cutvar, cutpoint, leftchildren, rightchildren, catsplit, catDomainSizes);
+                				}
                 				
                 				boolean fullfill_cond = true;
             					for(int cv : compatibleValues) {
@@ -1150,6 +1157,34 @@ public strictfp class RegtreeFit {
         }
         return compatibleValues;
     }
+    
+    //=== Get the values of variable var's domain that it could potentially take at this node (the values that are *compatible* with the splits going to this node)
+    private static double[] getCompatibleRange(int currnode, int var, int N, int[] parent, int[] cutvar, double[] cutpoint, int[] leftchildren, int[] rightchildren, int[][] catsplit, int[] catDomainSizes) {
+        double[] compatibleValues = null;
+        while (currnode > 0) { //iterate from node to root (bottom to top)
+            int parent_node = parent[currnode];
+            //if cut was done on variable that matters, get compatible values/range and return
+            if (-cutvar[parent_node]-1 == var) { // cutvar is negative for categorical splits
+                int catsplit_index = (int)cutpoint[parent_node];
+
+                if (leftchildren[parent_node] == currnode) {
+                    compatibleValues = catsplit[catsplit_index];
+                } else if (rightchildren[parent_node] == currnode) {
+                    compatibleValues = catsplit[catsplit_index+N];
+                } else {
+                    throw new RuntimeException("currnode must be either left or right child of its parent.");
+                }
+                break;
+            }
+            currnode = parent_node;
+        }
+        if (currnode == 0) {
+            compatibleValues = new int[catDomainSizes[var]];
+            for (int i=0; i < compatibleValues.length; i++) compatibleValues[i] = i+1;
+        }
+        return compatibleValues;
+    }
+    
     
     
     //======================================================================\\
