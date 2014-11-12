@@ -41,7 +41,7 @@ public class fastrf {
 		buildparams.ratioFeatures = 1;
 		//RandomForest forest = new RandomForest(1, buildparams);
 		
-		int numTrees = 1;
+		int numTrees = 10;
 		double[][] allTheta = {{1.,1.}, {0.,0.} };
 		
 		//no features
