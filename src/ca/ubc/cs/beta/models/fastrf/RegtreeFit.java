@@ -69,9 +69,15 @@ public strictfp class RegtreeFit {
     	
     /**
      * Fits a regression tree.
-     * @params allTheta, allX: matrices of all of the configurations/instances
-     * @params dataIdxs row i is data point i with X=[allTheta[dataIdxs[i][1]], allX[dataIdxs[i][2]]] and y=y[i].
-     * @params y a vector of size X.length of response values
+     * @params allTheta: matrix of all of the configurations. Dimensionality: #configurations x #parameters per config
+     * @params allX: matrix of features for all of the instances. Dimensionality: #instances x #features per instance
+     * @params dataIdxs: indices into allTheta and allX. Dimensionality: Nx2. This specifies for each input data point 
+     *                   which theta to use and which X to use. I.e., the i'th data point for the regression tree uses
+     *                   the parameters allTheta[dataIdxs[i][1]] and the features allX[dataIdxs[i][2]]. The corresponding 
+     *                   response values is y[i]. This is done to reduce the memory over a representation of the design
+     *                   matrix as N x (#parameters + #features). 
+     *                   (Commented by FH Nov 2014, 3 years after writing it; I believe this is true, I'm only confused that this field isn't called theta_inst_idxs.)
+     * @params y: vector of response values. Size: N
      * @params params see RegtreeBuildParams
      */
     public static Regtree fit(double[][] allTheta, double[][] allX, int[][] dataIdxs, double[] y, RegtreeBuildParams params) {
