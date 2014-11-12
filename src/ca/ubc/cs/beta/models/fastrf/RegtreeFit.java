@@ -390,12 +390,13 @@ public strictfp class RegtreeFit {
                     }
                 } else {
                 	int loop_idx = 0;
+                	//TODO; add features because always active
                 	for(int idx : params.activeCheckOrderArray) {
                 		boolean fullfill_disj = false;
                 		if (params.nameConditionsMapParentsArray.get(idx) == null) {
                 			randomPermutation[loop_idx] = idx;
                 			loop_idx++;
-                			continue;
+                			continue; // this parameter does not have any parents => active.
                 		}
                 		for(int i=0; i < params.nameConditionsMapParentsArray.get(idx).length; i++) {
                 			boolean fullfill_clause = true;
@@ -405,12 +406,12 @@ public strictfp class RegtreeFit {
                 				int op = params.nameConditionsMapOp.get(idx)[i][j];
                 				//TODO: should also return doubles for continuous parameters
                 				// how to decide whether a variable is categorical:
-                				boolean is_nextvar_cat = (catDomainSizes[idx] != 0);
+                				boolean is_var_cat = (catDomainSizes[idx] != 0);
                 				int[] compatibleValues = null;
-                				if (is_nextvar_cat) {
+                				if (is_var_cat) {
                 					compatibleValues = getCompatibleValues(tnode, parent_idx, N, parent, cutvar, cutpoint, leftchildren, rightchildren, catsplit, catDomainSizes);}
                 				else {
-                					double[] compatbileRange = getCompatibleRange(tnode, parent_idx, N, parent, cutvar, cutpoint, leftchildren, rightchildren, catsplit, catDomainSizes);
+                					double[] compatbileRange = getCompatibleRange(tnode, parent_idx, N, parent, cutvar, cutpoint, leftchildren, rightchildren);
                 				}
                 				
                 				boolean fullfill_cond = true;
@@ -1135,6 +1136,12 @@ public strictfp class RegtreeFit {
     //=== Get the values of variable var's domain that it could potentially take at this node (the values that are *compatible* with the splits going to this node)
     private static int[] getCompatibleValues(int currnode, int var, int N, int[] parent, int[] cutvar, double[] cutpoint, int[] leftchildren, int[] rightchildren, int[][] catsplit, int[] catDomainSizes) {
         int[] compatibleValues = null;
+        
+    	/*
+    	 * Iteratively follow the pointers up to the root, and check if there is a split on this parameter.
+    	 * If there is such a split, we simply return the values compatible with the subtree we're in.
+    	 * If we get all the way to the root we return the parameter's entire domain.
+    	 */
         while (currnode > 0) {
             int parent_node = parent[currnode];
             if (-cutvar[parent_node]-1 == var) { // cutvar is negative for categorical splits
@@ -1157,32 +1164,44 @@ public strictfp class RegtreeFit {
         }
         return compatibleValues;
     }
+
     
-    //=== Get the values of variable var's domain that it could potentially take at this node (the values that are *compatible* with the splits going to this node)
-    private static double[] getCompatibleRange(int currnode, int var, int N, int[] parent, int[] cutvar, double[] cutpoint, int[] leftchildren, int[] rightchildren, int[][] catsplit, int[] catDomainSizes) {
-        double[] compatibleValues = null;
-        while (currnode > 0) { //iterate from node to root (bottom to top)
+    //=== Get the range of variable var's domain that it could potentially take at this node (the range that is *compatible* with the splits going to this node)
+    private static double[] getCompatibleRange(int currnode, int var, int N, int[] parent, int[] cutvar, double[] cutpoint, int[] leftchildren, int[] rightchildren) {
+    	double upperBound = 1; // Continuous inputs to the RF are normalized to [0,1]. 
+    	double lowerBound = 0;
+    	
+    	boolean updatedLowerBound = false; 
+    	boolean updatedUpperBound = false;
+    	
+    	/*
+    	 * Iteratively follow the pointers up to the root, and check if there is a split on this parameter.
+    	 * For each split on this parameter, if we're the left child we update the upperBound and if we're the right child we update the lowerBound.
+    	 * Once we're at the root we're done.
+    	 */
+    	while (currnode > 0) {
             int parent_node = parent[currnode];
-            //if cut was done on variable that matters, get compatible values/range and return
-            if (-cutvar[parent_node]-1 == var) { // cutvar is negative for categorical splits
-                int catsplit_index = (int)cutpoint[parent_node];
+            if (cutvar[parent_node]-1 == var) { // cutvar is positive for continuous splits
+                double cut = cutpoint[parent_node];
 
                 if (leftchildren[parent_node] == currnode) {
-                    compatibleValues = catsplit[catsplit_index];
+                    upperBound = Math.min(upperBound, cut);
+                    updatedUpperBound = true;
                 } else if (rightchildren[parent_node] == currnode) {
-                    compatibleValues = catsplit[catsplit_index+N];
+                	lowerBound = Math.max(lowerBound, cut);
+                	updatedLowerBound = true;
                 } else {
                     throw new RuntimeException("currnode must be either left or right child of its parent.");
                 }
-                break;
+                if (updatedLowerBound && updatedUpperBound) break; // Once we have updated both the lower and the upper bound we're done since they only get less constrained higher up the tree.
             }
             currnode = parent_node;
         }
-        if (currnode == 0) {
-            compatibleValues = new int[catDomainSizes[var]];
-            for (int i=0; i < compatibleValues.length; i++) compatibleValues[i] = i+1;
-        }
-        return compatibleValues;
+        		
+        double[] result = new double[2];
+        result[0] = lowerBound;
+        result[1] = upperBound;
+        return result;
     }
     
     
