@@ -1,6 +1,7 @@
 package ca.ubc.cs.beta.models.fastrf;
 
 import java.util.*;
+
 import ca.ubc.cs.beta.models.fastrf.utils.*;
 
 public strictfp class RegtreeFit {
@@ -389,13 +390,10 @@ public strictfp class RegtreeFit {
                         randomPermutation[i] = i;
                     }
                 } else {
-                	int loop_idx = 0;
-                	//TODO; add features because always active
-                	for(int idx : params.activeCheckOrderArray) {
+                	for (int idx=0; idx< nvars; idx++) {
                 		boolean fullfill_disj = false;
                 		if (params.nameConditionsMapParentsArray.get(idx) == null) {
-                			randomPermutation[loop_idx] = idx;
-                			loop_idx++;
+                			randomPermutation[nvarsenabled++] = idx;
                 			continue; // this parameter does not have any parents => active.
                 		}
                 		for(int i=0; i < params.nameConditionsMapParentsArray.get(idx).length; i++) {
@@ -406,54 +404,95 @@ public strictfp class RegtreeFit {
                 				int op = params.nameConditionsMapOp.get(idx)[i][j];
                 				//TODO: should also return doubles for continuous parameters
                 				// how to decide whether a variable is categorical:
-                				boolean is_var_cat = (catDomainSizes[idx] != 0);
+                				boolean is_var_cat = (catDomainSizes[parent_idx] != 0);
                 				int[] compatibleValues = null;
+                				boolean fullfill_cond = true;
+                				
                 				if (is_var_cat) {
-                					compatibleValues = getCompatibleValues(tnode, parent_idx, N, parent, cutvar, cutpoint, leftchildren, rightchildren, catsplit, catDomainSizes);}
+                					compatibleValues = getCompatibleValues(tnode, parent_idx, N, parent, cutvar, cutpoint, leftchildren, rightchildren, catsplit, catDomainSizes);
+                					for(int cv : compatibleValues) {
+	            						boolean isok = false;
+	            						if (op == 0) { //EQ
+	            							double ov = values[0]; 
+	            							if (cv == ov) {
+	                							isok = true;
+	                						}
+	            						}
+	            						if (op == 1) { //NEQ
+	            							double ov = values[0]; 
+	            							if (cv != ov) {
+	                							isok = true;
+	                						}
+	            						}
+	            						if (op == 2) { //LE
+	            							double ov = values[0]; 
+	            							if (cv < ov) {
+	                							isok = true;
+	                						}
+	            						}
+	            						if (op == 3) { //GR
+	            							double ov = values[0]; 
+	            							if (cv > ov) {
+	                							isok = true;
+	                						}
+	            						}
+	            						if (op == 4) { //IN
+	            							for (double ov: values) {
+	            								if (cv == ov) {
+	                    							isok = true;
+	                    							break;
+	                    						}
+	            							}
+	            						}
+		                				if (!isok) {
+		        							fullfill_cond = false;
+		        							break;
+		        						}
+	                				}
+            					}
                 				else {
                 					double[] compatbileRange = getCompatibleRange(tnode, parent_idx, N, parent, cutvar, cutpoint, leftchildren, rightchildren);
-                				}
-                				
-                				boolean fullfill_cond = true;
-            					for(int cv : compatibleValues) {
-            						boolean isok = false;
             						if (op == 0) { //EQ
             							double ov = values[0]; 
-            							if (cv == ov) {
-                							isok = true;
+            							if (!(ov - compatbileRange[0] < Math.pow(10,-6) &&
+            								ov > compatbileRange[0] &&
+            								compatbileRange[1] - ov < Math.pow(10,-6) &&
+            								compatbileRange[1] > ov)) {
+            									fullfill_cond = false;
                 						}
             						}
             						if (op == 1) { //NEQ
             							double ov = values[0]; 
-            							if (cv != ov) {
-                							isok = true;
-                						}
+            							if (!((ov < compatbileRange[0]) || (ov > compatbileRange[1]))) {
+            								fullfill_cond = false;
+            							}
             						}
             						if (op == 2) { //LE
             							double ov = values[0]; 
-            							if (cv < ov) {
-                							isok = true;
+            							if (!(compatbileRange[0] < ov)) {
+            								fullfill_cond = false;
                 						}
             						}
             						if (op == 3) { //GR
             							double ov = values[0]; 
-            							if (cv > ov) {
-                							isok = true;
+            							if (!(compatbileRange[1] > ov)) {
+            								fullfill_cond = false;
                 						}
             						}
             						if (op == 4) { //IN
+            							boolean one_fits = false;
             							for (double ov: values) {
-            								if (cv == ov) {
-                    							isok = true;
-                    							break;
+            								if (ov - compatbileRange[0] < Math.pow(10,-6) &&
+                    								ov > compatbileRange[0] &&
+                    								compatbileRange[1] - ov < Math.pow(10,-6) &&
+                    								compatbileRange[1] > ov) {
+                    								one_fits = true;
+                    								break;
                     						}
             							}
+            							fullfill_cond = one_fits;
             						}
-            						if (!isok) {
-            							fullfill_cond = false;
-            							break;
-            						}
-            					}
+                				}
             					
             					if (!fullfill_cond) {
             						fullfill_clause = false;
@@ -464,14 +503,13 @@ public strictfp class RegtreeFit {
                 			}
                 		}
                 		if (fullfill_disj) {
-                			randomPermutation[loop_idx] = idx;
+                			randomPermutation[nvarsenabled++] = idx;
                 		}
-                		loop_idx++;
                 	}
                 }
                 
-                
-                if (condParents == null) {
+              //following code block is DEPRECATED
+         /*       if (condParents == null) {
                     nvarsenabled = nvars;
                     for (int i=0; i < nvars; i++) {
                         randomPermutation[i] = i;
@@ -503,7 +541,7 @@ public strictfp class RegtreeFit {
                         }
                         if (isenabled) randomPermutation[nvarsenabled++] = i;
                     }
-                }
+                }*/
                 //=== End: handle conditional parameters
                 shuffle(randomPermutation, nvarsenabled);
                 

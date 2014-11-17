@@ -20,12 +20,22 @@ import java.util.Arrays;
 public strictfp class RegtreeBuildParams implements java.io.Serializable {    
 	private static final long serialVersionUID = -6803645785543626390L;
 	public int[] catDomainSizes;
-    public int[][] condParents = null;
-    public int[][][] condParentVals = null;
     
-    public int[] activeCheckOrderArray;
+	//DEPRECATED
+	//public int[][] condParents = null;
+    //public int[][][] condParentVals = null;
+    
+    /*
+     * mapping from variable index to disjunctions of condition clauses (i.e., conjunctions) with parent variable index
+     */
     public Map<Integer, int[][]> nameConditionsMapParentsArray;
+    /*
+     * mapping from variable index to disjunctions of condition clauses (i.e., conjunctions) with parent variable value*s* (based on conditional operator, only one value (>,<,!=,==) or several values ("in") 
+     */
     public Map<Integer, double[][][]> nameConditionsMapParentsValues;
+    /*
+     * mapping from variable index to dijunctions of condition clauses (i.e., conjunctions) with conditional operators (<,>,!=,==,"in") 
+     */
     public Map<Integer, int[][]> nameConditionsMapOp;
     
     public double minVariance;
