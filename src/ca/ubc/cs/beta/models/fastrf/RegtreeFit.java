@@ -190,8 +190,8 @@ public strictfp class RegtreeFit {
             if (catDomainSizes[i] > maxDomSize) maxDomSize = catDomainSizes[i];
         }
         
-        int[][] condParents = params.condParents;
-        int[][][] condParentVals = params.condParentVals; 
+        //int[][] condParents = params.condParents;
+        //int[][][] condParentVals = params.condParentVals; 
         
         //=== Extract tuning parameters.
         double ratioFeatures = params.ratioFeatures;
