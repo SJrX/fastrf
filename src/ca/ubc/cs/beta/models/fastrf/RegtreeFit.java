@@ -390,6 +390,7 @@ public strictfp class RegtreeFit {
                         randomPermutation[i] = i;
                     }
                 } else {
+                	//TODO: Missing check: parameters are only active if all their parents are active
                 	for (int idx=0; idx< nvars; idx++) {
                 		boolean fullfill_disj = false;
                 		if (params.nameConditionsMapParentsArray.get(idx) == null) {
@@ -402,7 +403,6 @@ public strictfp class RegtreeFit {
                 				int parent_idx = params.nameConditionsMapParentsArray.get(idx)[i][j];
                 				double[] values = params.nameConditionsMapParentsValues.get(idx)[i][j];
                 				int op = params.nameConditionsMapOp.get(idx)[i][j];
-                				//TODO: should also return doubles for continuous parameters
                 				// how to decide whether a variable is categorical:
                 				boolean is_var_cat = (catDomainSizes[parent_idx] != 0);
                 				int[] compatibleValues = null;
