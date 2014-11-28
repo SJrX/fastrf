@@ -102,14 +102,19 @@ public class RFTester {
 		}
 	}
 	
+	/* In the following test, there are two occurrences for each element of X,  
+	 * which the RF cannot put into separate leaves,  
+	 * so it has to predict the mean across the two corresponding y values.
+	 */
 	@Test
-	public void testRfPredictionForAllThetaConstant(){
+	public void testRfPredictionNonUniqueX(){
 		double[][] allTheta = new double[1][1];
 		allTheta[0][0] = 1;
+		int modFactor = 500;
 	
-		double[][] allX = new double[10][1];
+		double[][] allX = new double[1000][1];
 		for (int i = 0; i < allX.length; i++) {
-			allX[i][0] = i;
+			allX[i][0] = i%modFactor;
 		}
 		
 		double[] y = new double[allX.length];
@@ -125,20 +130,20 @@ public class RFTester {
 		
 		RegtreeBuildParams buildParams = new RegtreeBuildParams(2, false, 1);
 				
-		int numTrees = 10;
+		int numTrees = 1;
 		RandomForest rf = RandomForest.learnModel(numTrees, allTheta, allX, theta_inst_idxs, y, buildParams);
 		
 		
 		double[][] combinedMatrixForTest = new double[theta_inst_idxs.length][2];
 		for (int i = 0; i < combinedMatrixForTest.length; i++) {
-			combinedMatrixForTest[i][0] = theta_inst_idxs[i][0];
-			combinedMatrixForTest[i][1] = theta_inst_idxs[i][1];
+			combinedMatrixForTest[i][0] = allTheta[theta_inst_idxs[i][0]][0];
+			combinedMatrixForTest[i][1] = allX[theta_inst_idxs[i][1]][0];
 		}
 		
 		double[][] meanvar = RandomForest.apply(rf, combinedMatrixForTest);
 		for (int i = 0; i < meanvar.length; i++) {
-			assertEquals(meanvar[i][0], y[i], 1e-10);
-			System.out.println( meanvar[i][0] + " " + y[i]);
+//			System.out.println( meanvar[i][0] + " " + (y[i%modFactor] + y[modFactor + i%modFactor])/2);
+			assertEquals(meanvar[i][0], (y[i%modFactor] + y[modFactor + i%modFactor])/2, 1e-10);
 		}
 	}
 	
