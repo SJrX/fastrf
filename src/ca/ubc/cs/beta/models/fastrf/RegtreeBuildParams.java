@@ -17,6 +17,22 @@ import java.util.Arrays;
  * @param minVariance - Minimum Variance value that will ever be returned on apply call
  */
 public strictfp class RegtreeBuildParams implements java.io.Serializable {    
+	public RegtreeBuildParams(int numVars, boolean doBootstrapping) {
+		this(numVars, doBootstrapping, 10);
+	}
+	
+	public RegtreeBuildParams(int numVars, boolean doBootstrapping, int splitMin) {
+		this(numVars, doBootstrapping, splitMin, 2.0/3);
+	}
+
+	public RegtreeBuildParams(int numVars, boolean doBootstrapping, int splitMin, double ratioFeatures) {
+		super();
+		this.catDomainSizes = new int[numVars]; //initialized to all zero
+		this.doBootstrapping = doBootstrapping;
+		this.splitMin = splitMin;
+		this.ratioFeatures = ratioFeatures;
+	}
+
 	private static final long serialVersionUID = -6803645785543626390L;
 	public int[] catDomainSizes;
     public int[][] condParents = null;
@@ -52,12 +68,12 @@ public strictfp class RegtreeBuildParams implements java.io.Serializable {
         
     }
     
-    
     public int splitMin;
     public void setSplitMin(int splitMin) {
 		this.splitMin = splitMin;
 	}
 
+    public boolean doBootstrapping = true;
 
 	public double ratioFeatures;
     public int logModel;
@@ -107,7 +123,7 @@ public strictfp class RegtreeBuildParams implements java.io.Serializable {
 
 	public static RegtreeBuildParams copy(RegtreeBuildParams bp, int size)
 	{
-			RegtreeBuildParams bpNew = new RegtreeBuildParams();
+			RegtreeBuildParams bpNew = new RegtreeBuildParams(size, bp.doBootstrapping);
 			
 			bpNew.logModel = bp.logModel;
 			bpNew.brokenVarianceCalculation = bp.brokenVarianceCalculation;

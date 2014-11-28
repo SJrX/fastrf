@@ -90,12 +90,20 @@ public strictfp class RandomForest implements java.io.Serializable {
         
         int N = y.length;
         
-        // Do bootstrap sampling for data for each tree.
+        //=== Assign data to each tree, with bootstrapping if set so in the regtree build params.
         int[][] dataIdxs = new int[numTrees][N];
-        for (int i = 0; i < numTrees; i++) {
-            for (int j = 0; j < N; j++) {
-                dataIdxs[i][j] = r.nextInt(N);
-            }
+        if (params.doBootstrapping){
+	        for (int i = 0; i < numTrees; i++) {
+	            for (int j = 0; j < N; j++) {
+	                dataIdxs[i][j] = r.nextInt(N); // standard bootstrapping: draw a random data point, with repetitions.
+	            }
+	        }
+        } else {
+	        for (int i = 0; i < numTrees; i++) {
+	            for (int j = 0; j < N; j++) {
+	                dataIdxs[i][j] = j; // no bootstrapping: every tree gets every data point.
+	            }
+	        }        	
         }
         /*
         if(RoundingMode.ROUND_NUMBERS_FOR_MATLAB_SYNC)
@@ -376,7 +384,7 @@ public strictfp class RandomForest implements java.io.Serializable {
     }
     
     
-    public static void main(String[] args)
+    public static void mainOld(String[] args)
     {
     	String badParams = "/tmp/RandomForestParams3027553244461234091Build";
     	String goodParams = "/tmp/RandomForestParams4017574993756479929Build";
