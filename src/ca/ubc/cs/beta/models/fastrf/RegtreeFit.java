@@ -1015,7 +1015,7 @@ public strictfp class RegtreeFit {
 
         rankSort(catmeans, domSize, sorder);
         
-        // Calculuate cumulative sums and counts.
+        // Calculate cumulative sums and counts.
         ycum[0] = 0;
         ycountcum[0] = 0;
         for (int j=1; j <= numtotal; j++) {
