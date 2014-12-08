@@ -6,7 +6,9 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
 import java.util.Random;
 import java.util.regex.Matcher;
@@ -62,15 +64,20 @@ public class RFTester {
 	@Test
 	public void testRfFromCSV() throws IOException{
 		CSVReader reader = new CSVReader(new FileReader("test_files/mini_csv.csv"));
-		
-		String line[];
-		while( (line = reader.readNext()) != null){
-			for (int i = 0; i < line.length; i++) {
-	//			System.out.print(line[i] + " ");
-			}
-	//		System.out.println();
-		}
+		List<String[]> lines = reader.readAll();
 		reader.close();
+
+		String[] header = lines.get(0);
+		
+		
+		double y[] = new double[lines.size()];
+		double Theta[][] = new double[lines.size()][];
+		for (String[] line : lines) {
+			for (int i = 0; i < line.length; i++) {
+				System.out.print(line[i] + " ");
+			}
+			System.out.println();			
+		}
 	}
 	
 	@Test
