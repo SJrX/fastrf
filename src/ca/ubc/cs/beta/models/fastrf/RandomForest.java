@@ -8,6 +8,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.*;
 
+import ca.ubc.cs.beta.models.fastrf.utils.CsvToDataConverter;
+import ca.ubc.cs.beta.models.fastrf.utils.RfData;
 import ca.ubc.cs.beta.models.fastrf.utils.Utils;
 
 public strictfp class RandomForest implements java.io.Serializable {
@@ -32,6 +34,27 @@ public strictfp class RandomForest implements java.io.Serializable {
         this.buildParams = buildParams;
     }
     
+	/*
+	 *  Builds an RF with standard parameters from an RfData object.
+	 */
+	public static RandomForest buildRf(RfData trainData) throws IOException{
+		//=== Read inputs from .csv file and learn RF.
+		RegtreeBuildParams regTreeBuildParams = new RegtreeBuildParams(true, 10, trainData.catDomainSizes);
+		RandomForest rf = RandomForest.learnModel(10, trainData.Theta, trainData.X, trainData.theta_inst_idxs, trainData.y, regTreeBuildParams);
+		return rf;
+	}
+
+    
+	/*
+	 *  Builds the RF from a CSV file.
+	 */
+	public static RandomForest buildRfFromCSV(String csvFileName, int[] thetaColIdxs, int[] xColIdxs, int yColIdx, int[] catColIdxs) throws IOException{
+		CsvToDataConverter converter = new CsvToDataConverter(csvFileName, thetaColIdxs, xColIdxs, yColIdx, catColIdxs);
+		RfData trainData = converter.readDataFromCsvFile(csvFileName);
+		return buildRf(trainData);
+	}
+	
+
     public boolean equals(Object o)
     {
     	

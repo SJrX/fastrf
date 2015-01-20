@@ -24,14 +24,23 @@ public strictfp class RegtreeBuildParams implements java.io.Serializable {
 	public RegtreeBuildParams(int numVars, boolean doBootstrapping, int splitMin) {
 		this(numVars, doBootstrapping, splitMin, 2.0/3);
 	}
-
+	
+	public RegtreeBuildParams(boolean doBootstrapping, int splitMin, int[] catDomainSizes) {
+		this( doBootstrapping, splitMin, 2.0/3, catDomainSizes);
+	}
+	
 	public RegtreeBuildParams(int numVars, boolean doBootstrapping, int splitMin, double ratioFeatures) {
+		this( doBootstrapping, splitMin, ratioFeatures, new int[numVars]); //initializes catDomainSizes to all zero
+	}
+	
+	public RegtreeBuildParams(boolean doBootstrapping, int splitMin, double ratioFeatures, int[] catDomainSizes) {
 		super();
-		this.catDomainSizes = new int[numVars]; //initialized to all zero
+		this.catDomainSizes = catDomainSizes; 
 		this.doBootstrapping = doBootstrapping;
 		this.splitMin = splitMin;
 		this.ratioFeatures = ratioFeatures;
 	}
+	
 
 	private static final long serialVersionUID = -6803645785543626390L;
 	public int[] catDomainSizes;
