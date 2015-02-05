@@ -1,5 +1,7 @@
 package ca.ubc.cs.beta.models.fastrf;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 import java.util.Arrays;
 
@@ -39,13 +41,29 @@ public strictfp class RegtreeBuildParams implements java.io.Serializable {
 		this.doBootstrapping = doBootstrapping;
 		this.splitMin = splitMin;
 		this.ratioFeatures = ratioFeatures;
+		this.random = new Random(3);
 	}
 	
 
 	private static final long serialVersionUID = -6803645785543626390L;
 	public int[] catDomainSizes;
-    public int[][] condParents = null;
-    public int[][][] condParentVals = null;
+    
+	//DEPRECATED
+	//public int[][] condParents = null;
+    //public int[][][] condParentVals = null;
+    
+    /*
+     * mapping from variable index to disjunctions of condition clauses (i.e., conjunctions) with parent variable index
+     */
+    public Map<Integer, int[][]> nameConditionsMapParentsArray;
+    /*
+     * mapping from variable index to disjunctions of condition clauses (i.e., conjunctions) with parent variable value*s* (based on conditional operator, only one value (>,<,!=,==) or several values ("in") 
+     */
+    public Map<Integer, double[][][]> nameConditionsMapParentsValues;
+    /*
+     * mapping from variable index to dijunctions of condition clauses (i.e., conjunctions) with conditional operators (<,>,!=,==,"in") 
+     */
+    public Map<Integer, int[][]> nameConditionsMapOp;
     
     public double minVariance;
     public String toString()
@@ -56,11 +74,11 @@ public strictfp class RegtreeBuildParams implements java.io.Serializable {
         sb.append(Arrays.toString(catDomainSizes));
         sb.append("\n");
         sb.append("\n");
-        sb.append("condParent: (" + ((condParents != null) ? condParents.length : "null") +")");
-        sb.append(Arrays.deepToString(condParents));
+        //sb.append("condParent: (" + ((condParents != null) ? condParents.length : "null") +")");
+        //sb.append(Arrays.deepToString(condParents));
         sb.append("\n");
-        sb.append("condParentVals: (" + ((condParentVals != null) ? condParentVals.length : "null") + ")");
-        sb.append(Arrays.deepToString(condParentVals));
+        //sb.append("condParentVals: (" + ((condParentVals != null) ? condParentVals.length : "null") + ")");
+        //sb.append(Arrays.deepToString(condParentVals));
         sb.append("\nSplitMin:" + splitMin);
         sb.append("\nRatioFeatures:" + ratioFeatures);
         //sb.append("\nCutOffPenaltyFactor:" + cutoffPenaltyFactor);
@@ -93,10 +111,11 @@ public strictfp class RegtreeBuildParams implements java.io.Serializable {
 	public boolean brokenVarianceCalculation = true;
     
     /**
+     * DEPRECATED
      * Matlab cell arrays don't carry over to Java very well so create the conditional arrays from the cell arrays
      * Called from matlab instead of setting the condParents and condParentVals arrays
      */
-    public void conditionalsFromMatlab(int[] cond, int[] condParent, Object[] condParentValsObj, int nvars) {
+   /* public void conditionalsFromMatlab(int[] cond, int[] condParent, Object[] condParentValsObj, int nvars) {
         condParents = new int[nvars][];
         condParentVals = new int[nvars][][];
         
@@ -125,6 +144,7 @@ public strictfp class RegtreeBuildParams implements java.io.Serializable {
             }
         }
     }
+	*/
 
 	public void setLogModel(int logModel) {
 		this.logModel = logModel;
@@ -138,12 +158,15 @@ public strictfp class RegtreeBuildParams implements java.io.Serializable {
 			bpNew.brokenVarianceCalculation = bp.brokenVarianceCalculation;
 			
 			bpNew.catDomainSizes = new int[size];
-			bpNew.condParents = new int[size][];
-			bpNew.condParentVals = new int[size][][];
+			//bpNew.condParents = new int[size][];
+			//bpNew.condParentVals = new int[size][][];
 			System.arraycopy(bp.catDomainSizes, 0,bpNew.catDomainSizes, 0, size);
-			System.arraycopy(bp.condParents, 0,bpNew.condParents, 0, size);
-			System.arraycopy(bp.condParentVals, 0,bpNew.condParentVals, 0, size);
-		
+			//System.arraycopy(bp.condParents, 0,bpNew.condParents, 0, size);
+			//System.arraycopy(bp.condParentVals, 0,bpNew.condParentVals, 0, size);
+			bpNew.nameConditionsMapParentsArray = new HashMap<Integer, int[][]>(bp.nameConditionsMapParentsArray);
+			bpNew.nameConditionsMapParentsValues = new HashMap<Integer, double[][][]>(bp.nameConditionsMapParentsValues);
+			bpNew.nameConditionsMapOp = new HashMap<Integer, int[][]>(bp.nameConditionsMapOp);
+			
 			bpNew.random = bp.random;
 			bpNew.ratioFeatures = bp.ratioFeatures;
 			bpNew.minVariance = bp.minVariance;
