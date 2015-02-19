@@ -153,9 +153,8 @@ public class fastrf {
 		System.out.println(Arrays.deepToString(pred));
 		//fail("Not yet implemented");
 		
-		assertTrue(pred[0][0] == 3.175);
-		assertTrue(pred[1][0] == 3.175);
-		assertTrue(pred[2][0] == 3.175);
+		assertTrue(pred[0][0] == pred[1][0]);
+		assertTrue(pred[2][0] == pred[1][0]);
 	}
 	
 	@Test
@@ -200,9 +199,8 @@ public class fastrf {
 		System.out.println(Arrays.deepToString(pred));
 		//fail("Not yet implemented");
 		
-		assertTrue(pred[0][0] > 4.38);
-		assertTrue(pred[1][0] == 1.7);
-		assertTrue(pred[2][0] > 4.38);
+		assertTrue(pred[0][0] ==  pred[2][0]);
+		assertTrue(pred[1][0] != pred[2][0]);
 	}
 	
 	@Test
@@ -247,9 +245,8 @@ public class fastrf {
 		System.out.println(Arrays.deepToString(pred));
 		//fail("Not yet implemented");
 		
-		assertTrue(pred[0][0] == 3.175);
-		assertTrue(pred[1][0] == 3.175);
-		assertTrue(pred[2][0] == 3.175);
+		assertTrue(pred[0][0] == pred[1][0]);
+		assertTrue(pred[2][0] == pred[1][0]);
 	}
 	
 	@Test
@@ -294,9 +291,8 @@ public class fastrf {
 		System.out.println(Arrays.deepToString(pred));
 		//fail("Not yet implemented");
 		
-		assertTrue(pred[0][0] > 4.38);
-		assertTrue(pred[1][0] == 1.7);
-		assertTrue(pred[2][0] > 4.38);
+		assertTrue(pred[0][0] ==  pred[2][0]);
+		assertTrue(pred[1][0] != pred[2][0]);
 	}
 	
 	@Test
@@ -341,9 +337,8 @@ public class fastrf {
 		System.out.println(Arrays.deepToString(pred));
 		//fail("Not yet implemented");
 		
-		assertTrue(pred[0][0] == 3.175);
-		assertTrue(pred[1][0] == 3.175);
-		assertTrue(pred[2][0] == 3.175);
+		assertTrue(pred[0][0] == pred[1][0]);
+		assertTrue(pred[2][0] == pred[1][0]);
 	}
 	
 	@Test
@@ -387,9 +382,8 @@ public class fastrf {
 		System.out.println(Arrays.deepToString(pred));
 		//fail("Not yet implemented");
 		
-		assertTrue(pred[0][0] > 4.38);
-		assertTrue(pred[1][0] == 1.7);
-		assertTrue(pred[2][0] > 4.38);
+		assertTrue(pred[0][0] ==  pred[2][0]);
+		assertTrue(pred[1][0] != pred[2][0]);
 	}
 	
 	@Test
@@ -433,9 +427,8 @@ public class fastrf {
 		System.out.println(Arrays.deepToString(pred));
 		//fail("Not yet implemented");
 		
-		assertTrue(pred[0][0] == 3.175);
-		assertTrue(pred[1][0] == 3.175);
-		assertTrue(pred[2][0] == 3.175);
+		assertTrue(pred[0][0] == pred[1][0]);
+		assertTrue(pred[2][0] == pred[1][0]);
 	}
 	
 	@Test
@@ -480,9 +473,8 @@ public class fastrf {
 		System.out.println(Arrays.deepToString(pred));
 		//fail("Not yet implemented");
 		
-		assertTrue(pred[0][0] == 3.175);
-		assertTrue(pred[1][0] == 3.175);
-		assertTrue(pred[2][0] == 3.175);
+		assertTrue(pred[0][0] == pred[1][0]);
+		assertTrue(pred[2][0] == pred[1][0]);
 	}
 	
 	@Test
@@ -525,9 +517,8 @@ public class fastrf {
 		System.out.println(Arrays.deepToString(pred));
 		//fail("Not yet implemented");
 		
-		assertTrue(pred[0][0] > 4.38);
-		assertTrue(pred[1][0] == 1.7);
-		assertTrue(pred[2][0] > 4.38);
+		assertTrue(pred[0][0] ==  pred[2][0]);
+		assertTrue(pred[1][0] != pred[2][0]);
 	}
 
 }
