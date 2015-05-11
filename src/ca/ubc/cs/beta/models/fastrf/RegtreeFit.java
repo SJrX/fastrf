@@ -1,6 +1,7 @@
 package ca.ubc.cs.beta.models.fastrf;
 
 import java.util.*;
+
 import ca.ubc.cs.beta.models.fastrf.utils.*;
 
 public strictfp class RegtreeFit {
@@ -69,9 +70,15 @@ public strictfp class RegtreeFit {
     	
     /**
      * Fits a regression tree.
-     * @params allTheta, allX: matrices of all of the configurations/instances
-     * @params dataIdxs row i is data point i with X=[allTheta[dataIdxs[i][1]], allX[dataIdxs[i][2]]] and y=y[i].
-     * @params y a vector of size X.length of response values
+     * @params allTheta: matrix of all of the configurations. Dimensionality: #configurations x #parameters per config
+     * @params allX: matrix of features for all of the instances. Dimensionality: #instances x #features per instance
+     * @params dataIdxs: indices into allTheta and allX. Dimensionality: Nx2. This specifies for each input data point 
+     *                   which theta to use and which X to use. I.e., the i'th data point for the regression tree uses
+     *                   the parameters allTheta[dataIdxs[i][1]] and the features allX[dataIdxs[i][2]]. The corresponding 
+     *                   response values is y[i]. This is done to reduce the memory over a representation of the design
+     *                   matrix as N x (#parameters + #features). 
+     *                   (Commented by FH Nov 2014, 3 years after writing it; I believe this is true, I'm only confused that this field isn't called theta_inst_idxs.)
+     * @params y: vector of response values. Size: N
      * @params params see RegtreeBuildParams
      */
     public static Regtree fit(double[][] allTheta, double[][] allX, int[][] dataIdxs, double[] y, RegtreeBuildParams params) {
@@ -189,8 +196,8 @@ public strictfp class RegtreeFit {
             if (catDomainSizes[i] > maxDomSize) maxDomSize = catDomainSizes[i];
         }
         
-        int[][] condParents = params.condParents;
-        int[][][] condParentVals = params.condParentVals; 
+        //int[][] condParents = params.condParents;
+        //int[][][] condParentVals = params.condParentVals; 
         
         //=== Extract tuning parameters.
         double ratioFeatures = params.ratioFeatures;
@@ -383,7 +390,132 @@ public strictfp class RegtreeFit {
             if (impure && Nnode >= splitMin) { // split only impure nodes with more than a threshold of uncensored values
                 //=== Start: handle conditional parameters. 
                 int nvarsenabled = 0; // #variables that are active for sure given the variable instantiations up to the root 
-                if (condParents == null) {
+                if (params.nameConditionsMapParentsArray == null || params.nameConditionsMapParentsArray.isEmpty()) {
+                    nvarsenabled = nvars;
+                    for (int i=0; i < nvars; i++) {
+                        randomPermutation[i] = i;
+                    }
+                } else {
+                	//TODO: Missing check: parameters are only active if all their parents are active
+                	for (int idx=0; idx< nvars; idx++) {
+                		boolean fullfill_disj = false;
+                		if (params.nameConditionsMapParentsArray.get(idx) == null) {
+                			randomPermutation[nvarsenabled++] = idx;
+                			continue; // this parameter does not have any parents => active.
+                		}
+                		for(int i=0; i < params.nameConditionsMapParentsArray.get(idx).length; i++) {
+                			boolean fullfill_clause = true;
+                			for(int j=0; j < params.nameConditionsMapParentsArray.get(idx)[i].length; j++) {
+                				int parent_idx = params.nameConditionsMapParentsArray.get(idx)[i][j];
+                				double[] values = params.nameConditionsMapParentsValues.get(idx)[i][j];
+                				int op = params.nameConditionsMapOp.get(idx)[i][j];
+                				// how to decide whether a variable is categorical:
+                				boolean is_var_cat = (catDomainSizes[parent_idx] != 0);
+                				int[] compatibleValues = null;
+                				boolean fullfill_cond = true;
+                				
+                				if (is_var_cat) {
+                					compatibleValues = getCompatibleValues(tnode, parent_idx, N, parent, cutvar, cutpoint, leftchildren, rightchildren, catsplit, catDomainSizes);
+                					for(int cv : compatibleValues) {
+	            						boolean isok = false;
+	            						if (op == 0) { //EQ
+	            							double ov = values[0]; 
+	            							if (cv == ov) {
+	                							isok = true;
+	                						}
+	            						}
+	            						if (op == 1) { //NEQ
+	            							double ov = values[0]; 
+	            							if (cv != ov) {
+	                							isok = true;
+	                						}
+	            						}
+	            						if (op == 2) { //LE
+	            							double ov = values[0]; 
+	            							if (cv < ov) {
+	                							isok = true;
+	                						}
+	            						}
+	            						if (op == 3) { //GR
+	            							double ov = values[0]; 
+	            							if (cv > ov) {
+	                							isok = true;
+	                						}
+	            						}
+	            						if (op == 4) { //IN
+	            							for (double ov: values) {
+	            								if (cv == ov) {
+	                    							isok = true;
+	                    							break;
+	                    						}
+	            							}
+	            						}
+		                				if (!isok) {
+		        							fullfill_cond = false;
+		        							break;
+		        						}
+	                				}
+            					}
+                				else {
+                					double[] compatbileRange = getCompatibleRange(tnode, parent_idx, N, parent, cutvar, cutpoint, leftchildren, rightchildren);
+            						if (op == 0) { //EQ
+            							double ov = values[0]; 
+            							if (!(ov - compatbileRange[0] < Math.pow(10,-6) &&
+            								ov > compatbileRange[0] &&
+            								compatbileRange[1] - ov < Math.pow(10,-6) &&
+            								compatbileRange[1] > ov)) {
+            									fullfill_cond = false;
+                						}
+            						}
+            						if (op == 1) { //NEQ
+            							double ov = values[0]; 
+            							if (!((ov < compatbileRange[0]) || (ov > compatbileRange[1]))) {
+            								fullfill_cond = false;
+            							}
+            						}
+            						if (op == 2) { //LE
+            							double ov = values[0]; 
+            							if (!(compatbileRange[0] < ov)) {
+            								fullfill_cond = false;
+                						}
+            						}
+            						if (op == 3) { //GR
+            							double ov = values[0]; 
+            							if (!(compatbileRange[1] > ov)) {
+            								fullfill_cond = false;
+                						}
+            						}
+            						if (op == 4) { //IN
+            							boolean one_fits = false;
+            							for (double ov: values) {
+            								if (ov - compatbileRange[0] < Math.pow(10,-6) &&
+                    								ov > compatbileRange[0] &&
+                    								compatbileRange[1] - ov < Math.pow(10,-6) &&
+                    								compatbileRange[1] > ov) {
+                    								one_fits = true;
+                    								break;
+                    						}
+            							}
+            							fullfill_cond = one_fits;
+            						}
+                				}
+            					
+            					if (!fullfill_cond) {
+            						fullfill_clause = false;
+            					}
+                			}
+                			if (fullfill_clause) {
+                				fullfill_disj = true;
+                			}
+                		}
+                		if (fullfill_disj) {
+                			randomPermutation[nvarsenabled++] = idx;
+                		}
+                	}
+                }
+                
+              //following code block is DEPRECATED
+         /*       if (condParents == null) {
                     nvarsenabled = nvars;
                     for (int i=0; i < nvars; i++) {
                         randomPermutation[i] = i;
@@ -415,7 +547,7 @@ public strictfp class RegtreeFit {
                         }
                         if (isenabled) randomPermutation[nvarsenabled++] = i;
                     }
-                }
+                }*/
                 //=== End: handle conditional parameters
                 shuffle(randomPermutation, nvarsenabled);
                 
@@ -1009,7 +1141,7 @@ public strictfp class RegtreeFit {
 
         rankSort(catmeans, domSize, sorder);
         
-        // Calculuate cumulative sums and counts.
+        // Calculate cumulative sums and counts.
         ycum[0] = 0;
         ycountcum[0] = 0;
         for (int j=1; j <= numtotal; j++) {
@@ -1048,6 +1180,12 @@ public strictfp class RegtreeFit {
     //=== Get the values of variable var's domain that it could potentially take at this node (the values that are *compatible* with the splits going to this node)
     private static int[] getCompatibleValues(int currnode, int var, int N, int[] parent, int[] cutvar, double[] cutpoint, int[] leftchildren, int[] rightchildren, int[][] catsplit, int[] catDomainSizes) {
         int[] compatibleValues = null;
+        
+    	/*
+    	 * Iteratively follow the pointers up to the root, and check if there is a split on this parameter.
+    	 * If there is such a split, we simply return the values compatible with the subtree we're in.
+    	 * If we get all the way to the root we return the parameter's entire domain.
+    	 */
         while (currnode > 0) {
             int parent_node = parent[currnode];
             if (-cutvar[parent_node]-1 == var) { // cutvar is negative for categorical splits
@@ -1070,6 +1208,46 @@ public strictfp class RegtreeFit {
         }
         return compatibleValues;
     }
+
+    
+    //=== Get the range of variable var's domain that it could potentially take at this node (the range that is *compatible* with the splits going to this node)
+    private static double[] getCompatibleRange(int currnode, int var, int N, int[] parent, int[] cutvar, double[] cutpoint, int[] leftchildren, int[] rightchildren) {
+    	double upperBound = 1; // Continuous inputs to the RF are normalized to [0,1]. 
+    	double lowerBound = 0;
+    	
+    	boolean updatedLowerBound = false; 
+    	boolean updatedUpperBound = false;
+    	
+    	/*
+    	 * Iteratively follow the pointers up to the root, and check if there is a split on this parameter.
+    	 * For each split on this parameter, if we're the left child we update the upperBound and if we're the right child we update the lowerBound.
+    	 * Once we're at the root we're done.
+    	 */
+    	while (currnode > 0) {
+            int parent_node = parent[currnode];
+            if (cutvar[parent_node]-1 == var) { // cutvar is positive for continuous splits
+                double cut = cutpoint[parent_node];
+
+                if (leftchildren[parent_node] == currnode) {
+                    upperBound = Math.min(upperBound, cut);
+                    updatedUpperBound = true;
+                } else if (rightchildren[parent_node] == currnode) {
+                	lowerBound = Math.max(lowerBound, cut);
+                	updatedLowerBound = true;
+                } else {
+                    throw new RuntimeException("currnode must be either left or right child of its parent.");
+                }
+                if (updatedLowerBound && updatedUpperBound) break; // Once we have updated both the lower and the upper bound we're done since they only get less constrained higher up the tree.
+            }
+            currnode = parent_node;
+        }
+        		
+        double[] result = new double[2];
+        result[0] = lowerBound;
+        result[1] = upperBound;
+        return result;
+    }
+    
     
     
     //======================================================================\\

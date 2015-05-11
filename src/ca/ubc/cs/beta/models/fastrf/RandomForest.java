@@ -8,6 +8,8 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.*;
 
+import ca.ubc.cs.beta.models.fastrf.utils.CsvToDataConverter;
+import ca.ubc.cs.beta.models.fastrf.utils.RfData;
 import ca.ubc.cs.beta.models.fastrf.utils.Utils;
 
 public strictfp class RandomForest implements java.io.Serializable {
@@ -32,6 +34,27 @@ public strictfp class RandomForest implements java.io.Serializable {
         this.buildParams = buildParams;
     }
     
+	/*
+	 *  Builds an RF with standard parameters from an RfData object.
+	 */
+	public static RandomForest buildRf(RfData trainData) throws IOException{
+		//=== Read inputs from .csv file and learn RF.
+		RegtreeBuildParams regTreeBuildParams = new RegtreeBuildParams(true, 10, trainData.catDomainSizes);
+		RandomForest rf = RandomForest.learnModel(10, trainData.Theta, trainData.X, trainData.theta_inst_idxs, trainData.y, regTreeBuildParams);
+		return rf;
+	}
+
+    
+	/*
+	 *  Builds the RF from a CSV file.
+	 */
+	public static RandomForest buildRfFromCSV(String csvFileName, int[] thetaColIdxs, int[] xColIdxs, int yColIdx, int[] catColIdxs) throws IOException{
+		CsvToDataConverter converter = new CsvToDataConverter(csvFileName, thetaColIdxs, xColIdxs, yColIdx, catColIdxs);
+		RfData trainData = converter.readDataFromCsvFile(csvFileName);
+		return buildRf(trainData);
+	}
+	
+
     public boolean equals(Object o)
     {
     	
@@ -90,12 +113,20 @@ public strictfp class RandomForest implements java.io.Serializable {
         
         int N = y.length;
         
-        // Do bootstrap sampling for data for each tree.
+        //=== Assign data to each tree, with bootstrapping if set so in the regtree build params.
         int[][] dataIdxs = new int[numTrees][N];
-        for (int i = 0; i < numTrees; i++) {
-            for (int j = 0; j < N; j++) {
-                dataIdxs[i][j] = r.nextInt(N);
-            }
+        if (params.doBootstrapping){
+	        for (int i = 0; i < numTrees; i++) {
+	            for (int j = 0; j < N; j++) {
+	                dataIdxs[i][j] = r.nextInt(N); // standard bootstrapping: draw a random data point, with repetitions.
+	            }
+	        }
+        } else {
+	        for (int i = 0; i < numTrees; i++) {
+	            for (int j = 0; j < N; j++) {
+	                dataIdxs[i][j] = j; // no bootstrapping: every tree gets every data point.
+	            }
+	        }        	
         }
         /*
         if(RoundingMode.ROUND_NUMBERS_FOR_MATLAB_SYNC)
@@ -376,7 +407,7 @@ public strictfp class RandomForest implements java.io.Serializable {
     }
     
     
-    public static void main(String[] args)
+    public static void mainOld(String[] args)
     {
     	String badParams = "/tmp/RandomForestParams3027553244461234091Build";
     	String goodParams = "/tmp/RandomForestParams4017574993756479929Build";
@@ -476,7 +507,18 @@ public strictfp class RandomForest implements java.io.Serializable {
     }
 
     /**
-     * Learns a random forest putting the specified data points into each tree.
+     * Learns a random forest.
+     * @param numTrees: number of trees to use.
+     * @params allTheta: matrix of all of the configurations. Dimensionality: #configurations x #parameters per config
+     * @params allX: matrix of features for all of the instances. Dimensionality: #instances x #features per instance
+     * @params theta_inst_idxs: indices into allTheta and allX. Dimensionality: Nx2. This specifies for each input data point 
+     *                   which theta to use and which X to use. I.e., the i'th data point for the regression tree uses
+     *                   the parameters allTheta[dataIdxs[i][1]] and the features allX[dataIdxs[i][2]]. The corresponding 
+     *                   response values is y[i]. This is done to reduce the memory over a representation of the design
+     *                   matrix as N x (#parameters + #features). 
+     * @params y: vector of response values. Size: N
+     * @params dataIdxs: Dimensions: #trees x #data points for each tree (typically in random forests taken to be equal to N).
+     * @params params: 
      * @see RegtreeFit.fit
      */
     public static RandomForest learnModel(int numTrees, double[][] allTheta, double[][] allX, int[][] theta_inst_idxs, double[] y, int[][] dataIdxs, RegtreeBuildParams params) {
@@ -533,6 +575,9 @@ public strictfp class RandomForest implements java.io.Serializable {
             throw new RuntimeException("length(dataIdxs) must be equal to numtrees.");
         }
     
+        /* 
+         * Collect the bootstrapped data for each tree as specified by the indices to be used for each tree in dataIdxs.
+         */
         RandomForest rf = new RandomForest(numTrees, params);
         for (int i = 0; i < numTrees; i++) {
             int N = dataIdxs[i].length;
@@ -550,8 +595,19 @@ public strictfp class RandomForest implements java.io.Serializable {
     
 
     /**
-     * Learns a random forest putting the specified data points into each tree.
-     * y values may vary 
+     * Learns a random forest. Almost identical to the standard learnModel, except that we specify directly the y values to use in each tree. 
+     * This is used for imputing values separately for each tree to deal with censored data.  
+     * @param numTrees: number of trees to use.
+     * @params allTheta: matrix of all of the configurations. Dimensionality: #configurations x #parameters per config
+     * @params allX: matrix of features for all of the instances. Dimensionality: #instances x #features per instance
+     * @params theta_inst_idxs: indices into allTheta and allX. Dimensionality: Nx2. This specifies for each input data point 
+     *                   which theta to use and which X to use. I.e., the i'th data point for the regression tree uses
+     *                   the parameters allTheta[dataIdxs[i][1]] and the features allX[dataIdxs[i][2]]. The corresponding 
+     *                   response values is y[i]. This is done to reduce the memory over a representation of the design
+     *                   matrix as N x (#parameters + #features). 
+     * @params y: vector of imputed response values, separately for each tree. Size: #trees x #data points for each tree
+     * @params dataIdxs: Dimensions: #trees x #data points for each tree (typically in random forests taken to be equal to N).
+     * @params params: 
      * @see RegtreeFit.fit
      */
     @SuppressWarnings("unused")
@@ -647,7 +703,7 @@ public strictfp class RandomForest implements java.io.Serializable {
     }
     
     /**
-     * Gets a prediction for the given instantiations of features
+     * Gets a prediction for the given instantiations of the input dimensions (number of columns in allTheta + number of columns in allX)
      * @returns a matrix of size X.length*2 where index (i,0) is the prediction for X[i] 
      * and (i,1) is the variance of that prediction. See Matlab code for how var is calculated.
      */
@@ -791,12 +847,16 @@ public strictfp class RandomForest implements java.io.Serializable {
     	return marginalTreePredictions(forest, tree_idxs_used, Theta, null);
     }
 	
+    /**
+     * Gets a prediction for each of the given configurations Theta, marginal across all the entries in the X used for training.
+     * @returns a matrix of size Theta.length*2 where index (i,0) is the prediction for Theta[i]
+     */
 	public static double[][] applyMarginal(RandomForest forest, int[] tree_idxs_used, double[][] Theta) {
     	return applyMarginal(forest, tree_idxs_used, Theta, null);
     }
     
     /**
-     * Gets a prediction for the given configurations and instances
+     * Gets a prediction for each of the given configurations Theta, marginal across the entries in X.
      * @returns a matrix of size Theta.length*2 where index (i,0) is the prediction for Theta[i] 
      * and (i,1) is the variance of that prediction. See Matlab code for how var is calculated.
      * @see RegtreeFwd.marginalFwd
