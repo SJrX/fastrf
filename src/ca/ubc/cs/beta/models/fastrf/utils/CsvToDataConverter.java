@@ -10,31 +10,26 @@ import java.util.Vector;
 
 import com.opencsv.CSVReader;
 
-public class CsvToDataConverter {
-	public CsvToDataConverter(String filename) throws IOException{
-		getColIdxsFromCsvHeader(filename);
-		prepareConverter(filename, thetaColIdxs, xColIdxs, yColIdx, catColIdxs);
-	}
-	
-	public CsvToDataConverter(String filename, int[] thetaColIdxs, int[] xColIdxs, int yColIdx, int[] catColIdxs) throws IOException{
-		prepareConverter(filename, thetaColIdxs, xColIdxs, yColIdx, catColIdxs);
-	}
-
+public class CsvToDataConverter implements java.io.Serializable {
+	private static final long serialVersionUID = 398638943689467378L;
 	private HashMap<Integer, Integer> csvColToModelDimMap;
 	private HashMap<Integer, Map<String,Integer>> catDomainValueMaps;
-	public HashMap<Integer, Map<String,Integer>> getCatDomainValueMaps(){
-		return catDomainValueMaps;
-	}
 	private int[] catDomainSizes;
-	public int[] getCatDomainSizes() {
-		return catDomainSizes;
-	}
-
 	private String[] csvHeader;
 	private int[] thetaColIdxs;
 	private int[] xColIdxs;
 	private int yColIdx;
 	private int[] catColIdxs;
+	private String[] parameterNames;
+	private String[] featureNames;
+
+	public HashMap<Integer, Map<String,Integer>> getCatDomainValueMaps(){
+		return catDomainValueMaps;
+	}
+	public int[] getCatDomainSizes() {
+		return catDomainSizes;
+	}
+
 	public String[] getParameterNames() {
 		return parameterNames;
 	}
@@ -43,8 +38,14 @@ public class CsvToDataConverter {
 		return featureNames;
 	}
 
-	private String[] parameterNames;
-	private String[] featureNames;
+	public CsvToDataConverter(String filename) throws IOException{
+		getColIdxsFromCsvHeader(filename);
+		prepareConverter(filename, thetaColIdxs, xColIdxs, yColIdx, catColIdxs);
+	}
+	
+	public CsvToDataConverter(String filename, int[] thetaColIdxs, int[] xColIdxs, int yColIdx, int[] catColIdxs) throws IOException{
+		prepareConverter(filename, thetaColIdxs, xColIdxs, yColIdx, catColIdxs);
+	}
 	
 	private void getColIdxsFromCsvHeader(String csvFilename) throws IOException{
 		//== Read header.
@@ -199,20 +200,30 @@ public class CsvToDataConverter {
 }
 	
 	/*
+	 *  Get the int value for a categorical value string for parameter j.
+	 */
+	public int getIntForCategoricalValueString(int j, String categoricalValueString){
+		if (catDomainSizes[j] == 0){ // not categorical
+			throw new RuntimeException("Parameter " + j + " is not categorical, so its categorical index is not defined.");	
+		} else {
+			int thetaValue = catDomainValueMaps.get(j).get(categoricalValueString);
+			return thetaValue;
+		}
+	}
+	
+	/*
 	 *  Read the data from a csv file (asserting that the file is of the same form as the one used to construct the converter).
 	 */
 	public RfData readDataFromCsvFile(String filename) throws IOException{
 		List<String[]> lines = readEntriesFromCsv(filename, false);
-		RfData data = new RfData();
 		
 		//=== Initialize Theta, X, y, and theta_inst_idxs. 
-		data.y = new double[lines.size()];
-		data.Theta = new double[lines.size()][thetaColIdxs.length];
-		data.X = new double[lines.size()][xColIdxs.length];
-		data.theta_inst_idxs = new int[lines.size()][2];
+		double[][] Theta_nonuniq = new double[lines.size()][thetaColIdxs.length];
+		double[][] X_nonuniq = new double[lines.size()][xColIdxs.length];
+		double[] y = new double[lines.size()];
 		
 		//=== Load data into Theta, X, y, and theta_inst_idxs, one line at a time. 
-		for (int i = 0; i < data.y.length; i++) {
+		for (int i = 0; i < y.length; i++) {
 			String[] line = lines.get(i);
 			for (int j = 0; j < thetaColIdxs.length; j++) {
 				int csvColIdx = thetaColIdxs[j];
@@ -220,10 +231,11 @@ public class CsvToDataConverter {
 				
 				String valueString = line[csvColIdx].trim();
 				if (catDomainSizes[modelColIdx] == 0){ // not categorical
-					data.Theta[i][modelColIdx] = Double.parseDouble(valueString);			
+					Theta_nonuniq[i][modelColIdx] = Double.parseDouble(valueString);			
 				} else {
-					int thetaValue = catDomainValueMaps.get(modelColIdx).get(valueString);
-					data.Theta[i][modelColIdx] = thetaValue;					
+					int thetaValue = getIntForCategoricalValueString(modelColIdx, valueString);
+//					int thetaValue = catDomainValueMaps.get(modelColIdx).get(valueString); // equivalent, but let's use the same method for this everywhere.
+					Theta_nonuniq[i][modelColIdx] = thetaValue;					
 				}					
 			}
 			for (int j = 0; j < xColIdxs.length; j++) {
@@ -231,11 +243,11 @@ public class CsvToDataConverter {
 				int modelColIdx = csvColToModelDimMap.get(csvColIdx);
 				String valueString = line[csvColIdx].trim();
 				if (catDomainSizes[modelColIdx] == 0){ // not categorical
-					data.X[i][modelColIdx-thetaColIdxs.length] = Double.parseDouble(valueString);
+					X_nonuniq[i][modelColIdx-thetaColIdxs.length] = Double.parseDouble(valueString);
 				} else {
 					if ( catDomainValueMaps.get(modelColIdx).containsKey(valueString) ){
 						int xValue = catDomainValueMaps.get(modelColIdx).get(valueString);
-						data.X[i][modelColIdx-thetaColIdxs.length] = xValue;											
+						X_nonuniq[i][modelColIdx-thetaColIdxs.length] = xValue;											
 					} else {
 						throw new IllegalArgumentException("Error in reading csv file: value for column " + csvColIdx + " (" + csvHeader[csvColIdx] + ") is " + valueString + "; the domain only has the values " + catDomainValueMaps.get(modelColIdx).keySet());
 //						System.out.println("\n\n======================================================\nError in reading csv file: value for column " + csvColIdx + " (" + csvHeader[csvColIdx] + ") is " + valueString + "; the domain only has the values " + catDomainValueMaps.get(modelColIdx).keySet() + "\n\n REPLACING WITH INDEX 0 \n\n======================================================\n");
@@ -243,13 +255,10 @@ public class CsvToDataConverter {
 					}
 				}					
 			}
-			data.y[i] = Double.parseDouble(line[yColIdx]);
-			data.theta_inst_idxs[i][0] = i;
-			data.theta_inst_idxs[i][1] = i;
+			y[i] = Double.parseDouble(line[yColIdx]);
 		}
 		
-		data.catDomainSizes = catDomainSizes;		
-		return data;
+		return new RfData(Theta_nonuniq, X_nonuniq, y, catDomainSizes);
 	}
 	
 	public String getPcsString(String filename) throws IOException{

@@ -1,5 +1,6 @@
 package ca.ubc.cs.beta.models.fastrf.utils;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -7,12 +8,65 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Vector;
 
-public class RfData {
-	public double[][] Theta;
-	public double[][] X;
-	public double[] y;
-	public int[][] theta_inst_idxs;
-	public int[] catDomainSizes;
+public class RfData implements java.io.Serializable {
+	private static final long serialVersionUID = 239457234672435L;
+	public RfData(ArrayList<TripletDoubleArrayDoubleArrayDouble> data, int[] catDomainSizes) {
+		int numTheta = data.get(0).theta.length;
+		int numX = data.get(0).x.length;
+		
+		Theta = new double[data.size()][numTheta];
+		X = new double[data.size()][numX];
+		y = new double[data.size()];
+
+		for (int i=0; i<data.size(); i++) {
+			TripletDoubleArrayDoubleArrayDouble triplet = data.get(i);
+			System.arraycopy(triplet.theta, 0, Theta[i], 0, numTheta);
+			System.arraycopy(triplet.x, 0, X[i], 0, numX);
+			y[i] = triplet.y;
+		}
+		
+		construct(Theta, X, y, catDomainSizes);
+	}
+
+	public RfData(double[][] Theta_nonuniq, double[][] X_nonuniq, double[] y, int[] catDomainSizes) {
+		construct(Theta_nonuniq, X_nonuniq, y, catDomainSizes);
+	}
+	
+	private void construct(double[][] Theta_nonuniq, double[][] X_nonuniq, double[] y, int[] catDomainSizes) {
+		Theta = Theta_nonuniq;
+		X = X_nonuniq;
+		this.y = y;
+		this.catDomainSizes = catDomainSizes;
+		this.theta_inst_idxs = new int[Theta.length][2];
+		for(int i=0; i<theta_inst_idxs.length; i++){
+			theta_inst_idxs[i][0] = i;
+			theta_inst_idxs[i][1] = i;
+		}
+		makeUnique(true);
+		makeUnique(false);
+	}
+
+	private double[][] Theta;
+	private double[][] X;
+	private double[] y;
+	private int[][] theta_inst_idxs;
+	private int[] catDomainSizes;
+	
+	public double[][] getTheta() {
+		return Theta;
+	}
+	public double[][] getX() {
+		return X;
+	}
+	public double[] getY() {
+		return y;
+	}
+	public int[][] getTheta_inst_idxs() {
+		return theta_inst_idxs;
+	}
+	public int[] getCatDomainSizes() {
+		return catDomainSizes;
+	}
 	
 	/* 
 	 * Make Theta unique, and updates the first column of theta_inst_idxs accordingly.  
