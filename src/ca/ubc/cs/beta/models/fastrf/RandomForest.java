@@ -13,7 +13,7 @@ import ca.ubc.cs.beta.models.fastrf.utils.RfData;
 import ca.ubc.cs.beta.models.fastrf.utils.Utils;
 
 public strictfp class RandomForest implements java.io.Serializable {
-    private static final long serialVersionUID = 5204746081208095705L;
+    private static final long serialVersionUID = 5204746081205095705L;
     
     public int numTrees;
     public Regtree[] Trees;
@@ -37,14 +37,36 @@ public strictfp class RandomForest implements java.io.Serializable {
 	/*
 	 *  Builds an RF with standard parameters from an RfData object.
 	 */
-	public static RandomForest buildRf(RfData trainData) throws IOException{
+	public static RandomForest buildRf(RfData trainData){
 		//=== Read inputs from .csv file and learn RF.
-		RegtreeBuildParams regTreeBuildParams = new RegtreeBuildParams(true, 10, trainData.catDomainSizes);
-		RandomForest rf = RandomForest.learnModel(10, trainData.Theta, trainData.X, trainData.theta_inst_idxs, trainData.y, regTreeBuildParams);
+		RegtreeBuildParams regTreeBuildParams = new RegtreeBuildParams(true, 10, trainData.getCatDomainSizes());
+		RandomForest rf = RandomForest.learnModel(10, trainData.getTheta(), trainData.getX(), trainData.getTheta_inst_idxs(), trainData.getY(), regTreeBuildParams);
+		return rf;
+	}    
+	
+	/*
+	 *  Builds an RF with standard parameters from an RfData object.
+	 */
+	public static RandomForest buildRf(RfData trainData, int numTrees){
+		//=== Read inputs from .csv file and learn RF.
+		RegtreeBuildParams regTreeBuildParams = new RegtreeBuildParams(true, 10, trainData.getCatDomainSizes());
+		RandomForest rf = RandomForest.learnModel(numTrees, trainData.getTheta(), trainData.getX(), trainData.getTheta_inst_idxs(), trainData.getY(), regTreeBuildParams);
 		return rf;
 	}
 
-    
+
+	/*
+	 *  Builds a deterministic RF that perfectly reproduces the training response values.
+	 */
+	public static RandomForest buildDeterministicRf(RfData trainData){
+		//=== Read inputs from .csv file and learn RF.
+		RegtreeBuildParams regTreeBuildParams = new RegtreeBuildParams(false, 1, 1.0, trainData.getCatDomainSizes());
+		RandomForest rf = RandomForest.learnModel(1, trainData.getTheta(), trainData.getX(), trainData.getTheta_inst_idxs(), trainData.getY(), regTreeBuildParams);
+		return rf;
+	}
+
+	
+	
 	/*
 	 *  Builds the RF from a CSV file.
 	 */
@@ -493,7 +515,6 @@ public strictfp class RandomForest implements java.io.Serializable {
     	File f = new File(filename);
 		save(forest, f);
     }
-    
 
     public static void save(RandomForest forest, File f){
 		try{
