@@ -27,24 +27,24 @@ public class DataTester {
 		
 		CsvToDataConverter converter = new CsvToDataConverter(filename, thetaColIdxs, xColIdxs, yColIdx, catColIdxs);
 		RfData data = converter.readDataFromCsvFile(filename);
-		assertEquals(data.Theta.length, 5);
-		assertEquals(data.X.length, 5);
+		assertEquals(data.getTheta().length, 5);
+		assertEquals(data.getX().length, 5);
 		
 		data.makeUnique(true);
-		assertEquals(data.Theta.length, 2);
-		assertEquals(data.X.length, 5);
+		assertEquals(data.getTheta().length, 2);
+		assertEquals(data.getX().length, 5);
 		
 		data.makeUnique(false);
-		assertEquals(data.Theta.length, 2);
-		assertEquals(data.X.length, 3);
+		assertEquals(data.getTheta().length, 2);
+		assertEquals(data.getX().length, 3);
 
 		data.makeUnique(true);
-		assertEquals(data.Theta.length, 2);
-		assertEquals(data.X.length, 3);
+		assertEquals(data.getTheta().length, 2);
+		assertEquals(data.getX().length, 3);
 
 		data.makeUnique(false);
-		assertEquals(data.Theta.length, 2);
-		assertEquals(data.X.length, 3);		
+		assertEquals(data.getTheta().length, 2);
+		assertEquals(data.getX().length, 3);		
 	}
 	
 	@Test
@@ -58,13 +58,13 @@ public class DataTester {
 		CsvToDataConverter converter = new CsvToDataConverter(filename, thetaColIdxs, xColIdxs, yColIdx, catColIdxs);
 		RfData data = converter.readDataFromCsvFile(filename);
 		
-		RandomForest rf = RandomForest.learnModel(1, data.Theta, data.X, data.theta_inst_idxs, data.y, new RegtreeBuildParams(2, false, 1));
+		RandomForest rf = RandomForest.learnModel(1, data.getTheta(), data.getX(), data.getTheta_inst_idxs(), data.getY(), new RegtreeBuildParams(2, false, 1));
 
 		//=== Predictions on the training data must be exact.
 		double[][] newX = data.buildMatrixForApply();
 		double[][] meanvar = RandomForest.apply(rf, newX);
-		for (int i = 0; i < data.y.length; i++) {
-			assertEquals(meanvar[i][0], data.y[i], 1e-10);
+		for (int i = 0; i < data.getY().length; i++) {
+			assertEquals(meanvar[i][0], data.getY()[i], 1e-10);
 		}
 	}
 
@@ -90,12 +90,12 @@ public class DataTester {
 		//		trainData.makeUnique(false);
 
 		RegtreeBuildParams regTreeBuildParams = new RegtreeBuildParams(false, 1, converter.getCatDomainSizes());  // , true, 10);
-		RandomForest rf = RandomForest.learnModel(1, trainData.Theta, trainData.X, trainData.theta_inst_idxs, trainData.y, regTreeBuildParams);
+		RandomForest rf = RandomForest.learnModel(1, trainData.getTheta(), trainData.getX(), trainData.getTheta_inst_idxs(), trainData.getY(), regTreeBuildParams);
 
 		//=== Predictions on the training data must be exact.
 		double[][] meanvar = RandomForest.apply(rf, trainData.buildMatrixForApply());
-		for (int i = 0; i < trainData.y.length; i++) {
-			assertEquals(meanvar[i][0], trainData.y[i], 1e-10);
+		for (int i = 0; i < trainData.getY().length; i++) {
+			assertEquals(meanvar[i][0], trainData.getY()[i], 1e-10);
 		}
 	}
 	
@@ -119,16 +119,16 @@ public class DataTester {
 	
 		//=== Learn RF.
 		RegtreeBuildParams regTreeBuildParams = new RegtreeBuildParams(true, 10, converter.getCatDomainSizes());
-		RandomForest rf = RandomForest.learnModel(10, trainData.Theta, trainData.X, trainData.theta_inst_idxs, trainData.y, regTreeBuildParams);
+		RandomForest rf = RandomForest.learnModel(10, trainData.getTheta(), trainData.getX(), trainData.getTheta_inst_idxs(), trainData.getY(), regTreeBuildParams);
 	
 		//=== Determine mean predictor.
 		double rmse = 0;
 		double rmseOfMeanPred = 0;
 		double meanPred = 0; 
-		for (int i = 0; i < trainData.y.length; i++) {
-			meanPred += trainData.y[i]; 
+		for (int i = 0; i < trainData.getY().length; i++) {
+			meanPred += trainData.getY()[i]; 
 		}
-		meanPred /= trainData.y.length;
+		meanPred /= trainData.getY().length;
 				
 		//=== Load test set.
 		String testFilename = "test_files/test_ldof_data_shuffled_first10000.csv";
@@ -138,12 +138,12 @@ public class DataTester {
 	
 		//=== Assert that our model is better than the mean predictor.
 		double[][] meanvar = RandomForest.apply(rf, testData.buildMatrixForApply());
-		for (int i = 0; i < testData.y.length; i++) {
-			rmse += Math.pow( (testData.y[i]-meanvar[i][0]), 2); 
-			rmseOfMeanPred += Math.pow( (testData.y[i] - meanPred), 2);
+		for (int i = 0; i < testData.getY().length; i++) {
+			rmse += Math.pow( (testData.getY()[i]-meanvar[i][0]), 2); 
+			rmseOfMeanPred += Math.pow( (testData.getY()[i] - meanPred), 2);
 		}
-		rmse = Math.sqrt(rmse/testData.y.length);
-		rmseOfMeanPred = Math.sqrt(rmseOfMeanPred/testData.y.length);
+		rmse = Math.sqrt(rmse/testData.getY().length);
+		rmseOfMeanPred = Math.sqrt(rmseOfMeanPred/testData.getY().length);
 		System.out.println("RMSE = " + rmse + "; rmse of mean pred: " + rmseOfMeanPred);
 		assertTrue(rmse < rmseOfMeanPred);
 	}
