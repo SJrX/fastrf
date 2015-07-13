@@ -112,7 +112,6 @@ dirty: ${git.dirty}</echo>
 			</fileset>
 
 		</path>
-
 		<junit fork="yes" printsummary="true" showoutput="false">
 			<classpath refid="test.classpath"/>
 			<test name="fastrf.FastRFTestSuite" todir="build/"/>
