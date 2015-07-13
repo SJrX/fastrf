@@ -81,6 +81,45 @@ dirty: ${git.dirty}</echo>
 		<classpath refid="compile.classpath"/>
 		</javac>
 	</target>
+
+	<target name="compile-test" depends="init, compile">
+		<path id="test.classpath">
+			<fileset dir="lib" id="lib">
+				<include name="*.jar"/>
+				<exclude name="*sources.jar"/>
+			</fileset>
+			<pathelement path="build/classes/" />
+			<fileset dir="test-lib/">
+				<include name="*.jar"/>
+			</fileset>
+
+		</path>
+
+		<javac srcdir="test" destdir="build/classes" debug="true" target="1.7" source="1.7">
+			<classpath refid="test.classpath"/>
+		</javac>
+	</target>
+
+	<target name="test" depends="clean, compile-test" description="Run JUnit Tests">
+		<path id="test.classpath">
+			<fileset dir="lib" id="lib">
+				<include name="*.jar"/>
+				<exclude name="*sources.jar"/>
+			</fileset>
+			<pathelement path="build/classes/" />
+			<fileset dir="test-lib/">
+				<include name="*.jar"/>
+			</fileset>
+
+		</path>
+
+		<junit fork="yes" printsummary="true" showoutput="false">
+			<classpath refid="test.classpath"/>
+			<test name="fastrf.FastRFTestSuite"/>
+			<formatter type="plain" usefile="false" />
+		</junit>
+	</target>
+
 	<target name="archive" depends="compile">
 		
 		<buildnumber file="${buildnumberpath}/buildnumber-${ant.project.name}"/>

@@ -1,3 +1,5 @@
+package fastrf;
+
 import de.unifreiburg.cs.junit.DataTester;
 import de.unifreiburg.cs.junit.RFTester;
 import fastrf.fastrf;

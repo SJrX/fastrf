@@ -1,69 +1,25 @@
 package de.unifreiburg.cs.junit;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Queue;
-import java.util.Random;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import ca.ubc.cs.beta.models.fastrf.RandomForest;
 import ca.ubc.cs.beta.models.fastrf.RegtreeBuildParams;
-
 import com.opencsv.CSVReader;
+import org.junit.Test;
 
-import org.junit.*;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.List;
+import java.util.Random;
 
-import com.sun.xml.internal.ws.client.ClientSchemaValidationTube;
-
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 public class RFTester {
 	public static String rfDeployment = null;
 	public static Long seedOffset = Math.abs((new Random()).nextLong());
 
-	//Boiler plate copied from SMAC, but does not work here...
-	/*
-  	@BeforeClass
-	public static void initDeploymentToTest()
-	{
-
-		String s = ClassLoader.getSystemClassLoader().getResource("lastbuild-deploy.txt").getFile();
-		//System.out.println("CL Name:"+ ClassLoader.getSystemClassLoader().getClass().getName());
-		if(s == null || s.trim().length() == 0)
-		{
-			throw new AssertionError("Could not find deployment file lastbuild-deploy.txt on classpath");
-		}
-		File f = new File(s);
-		try {
-			BufferedReader r = new BufferedReader(new FileReader(f));
-			rfDeployment = r.readLine();
-			System.out.println("RF DEPLOYMENT: " + rfDeployment);
-			r.close();
-		} catch (FileNotFoundException e) {
-			throw new AssertionError("Could open the deployment file lastbuild-deploy.txt");
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			throw new AssertionError(e);
-		}
-
-		//System.out.println(s);
-
-		//System.out.println(f.getAbsolutePath())
-	}
-*/
-
 	
 	@Test
 	public void testRfFromCSV() throws IOException{
-		CSVReader reader = new CSVReader(new FileReader("test_files/mini_csv.csv"));
+		CSVReader reader = new CSVReader(new FileReader("test_files/mini.csv"));
 		List<String[]> lines = reader.readAll();
 		reader.close();
 
