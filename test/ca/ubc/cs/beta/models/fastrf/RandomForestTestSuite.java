@@ -1,24 +1,21 @@
-package fastrf;
+package ca.ubc.cs.beta.models.fastrf;
 
 import de.unifreiburg.cs.junit.DataTester;
 import de.unifreiburg.cs.junit.RFTester;
 import fastrf.fastrf;
-import junit.framework.TestSuite;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
 /**
- * Test Suite for Fast RF Code
- *
- * @author Steve Ramage <seramage@cs.ubc.ca>
+ * Created by Steve Ramage <seramage@cs.ubc.ca> on 11/14/15
  */
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
+        RegtreeFitTestContinuousDomain.class,
+        RegtreeFitTestCategoricalDomain.class,
         DataTester.class,
         RFTester.class,
         fastrf.class
 })
-
-public class FastRFTestSuite {
-
+public class RandomForestTestSuite {
 }

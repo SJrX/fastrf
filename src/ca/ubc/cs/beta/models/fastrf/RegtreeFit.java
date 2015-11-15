@@ -8,24 +8,16 @@ public strictfp class RegtreeFit {
     
     private static Random r;
     
-    //Not sure why we need this field
-    @SuppressWarnings("unused")
-	private static long seed;
+
     //*
     private static final int RAND_MAX = Integer.MAX_VALUE - 1;
     private static int rand() {
-        int retn = r.nextInt(Integer.MAX_VALUE);
-        return retn;
+        return r.nextInt(Integer.MAX_VALUE);
     }
-    /*/
-    private static final int RAND_MAX = 2147483646;
-    private static int rand() {
-        return (int)(seed = (seed*22695477+1)%(RAND_MAX+1));
-    }
-    //*/
+
     
     private static final double INVALID_CRITVAL = -1e13;
-    
+    /*
     public static Regtree fit(double[][] allTheta, double[][] allX, double[] y, RegtreeBuildParams params) {    
         Random r = params.random;
         if (r == null) {
@@ -46,7 +38,7 @@ public strictfp class RegtreeFit {
             dataIdxs[i][1] = (numX == 0 ? 0 : r.nextInt(numX));
         }
         return fit(allTheta, allX, dataIdxs, y, params);
-    }
+    }*/
     
     
     private static int[][] dataIdxs;
@@ -70,25 +62,19 @@ public strictfp class RegtreeFit {
     	
     /**
      * Fits a regression tree.
-     * @params allTheta: matrix of all of the configurations. Dimensionality: #configurations x #parameters per config
-     * @params allX: matrix of features for all of the instances. Dimensionality: #instances x #features per instance
-     * @params dataIdxs: indices into allTheta and allX. Dimensionality: Nx2. This specifies for each input data point 
+     * @param allTheta: matrix of all of the configurations. Dimensionality: #configurations x #parameters per config
+     * @param allX: matrix of features for all of the instances. Dimensionality: #instances x #features per instance
+     * @param dataIdxs: indices into allTheta and allX. Dimensionality: Nx2. This specifies for each input data point
      *                   which theta to use and which X to use. I.e., the i'th data point for the regression tree uses
      *                   the parameters allTheta[dataIdxs[i][1]] and the features allX[dataIdxs[i][2]]. The corresponding 
      *                   response values is y[i]. This is done to reduce the memory over a representation of the design
      *                   matrix as N x (#parameters + #features). 
      *                   (Commented by FH Nov 2014, 3 years after writing it; I believe this is true, I'm only confused that this field isn't called theta_inst_idxs.)
-     * @params y: vector of response values. Size: N
-     * @params params see RegtreeBuildParams
+     * @param y: vector of response values. Size: N
+     * @param params see RegtreeBuildParams
      */
     public static Regtree fit(double[][] allTheta, double[][] allX, int[][] dataIdxs, double[] y, RegtreeBuildParams params) {
     	boolean printDebug = false;
-    	/*
-    	if(RoundingMode.ROUND_NUMBERS_FOR_MATLAB_SYNC)
-    	{
-    	    System.out.println("dataIdxs" + Arrays.deepToString(dataIdxs));
-    	}*/
-    
       
     	long startTime = new Date().getTime();
     	long currentTime = startTime;
@@ -104,7 +90,6 @@ public strictfp class RegtreeFit {
                 r.setSeed(params.seed);
             }
         }
-        seed = params.seed;
         
         // Calculate input data dimensions
         int numTheta = (allTheta == null ? 0 : allTheta.length);
@@ -178,16 +163,7 @@ public strictfp class RegtreeFit {
         
         //=== Extract data from the input params.
         int[] catDomainSizes = params.catDomainSizes;
-        /*
-        System.out.println("2");
-        System.out.println("Params:" + params);
-        System.out.println("Nvars" + nvars);
-       // System.out.println("AllX" + Arrays.deepToString(allX));
-        System.out.println("AllTheta" + Arrays.deepToString(allTheta));
-        System.out.println("dataIdxs" + Arrays.deepToString(dataIdxs));
-        System.out.println("y" + Arrays.toString(y));
-        //System.out.println("cens:" + Arrays.toString(cens));
-*/
+
         if (catDomainSizes != null && catDomainSizes.length != nvars) {
             throw new RuntimeException("catDomainSizes must be of the same length as size(X, 2), i.e. " + nvars + ", but is " + catDomainSizes.length);
         }
@@ -245,8 +221,6 @@ public strictfp class RegtreeFit {
         // For sorting
         sorder = new int[Math.max(N, maxDomSize)];
         
-        double ystd = Utils.var(y);
-        
         //=== Start: pre-sort each variable
         // The entries of sortedTheta and sortedX are indices into allTheta/allX.
         int[][] sortedTheta = new int[numThetavars][];
@@ -270,8 +244,8 @@ public strictfp class RegtreeFit {
             sortedX[i] = new int[numX];
             rankSort(temp, numX, sortedX[i]);
         }
-        rankSort(y, N, index_into_dataIdxs_here); 
-        temp = null;
+        rankSort(y, N, index_into_dataIdxs_here);
+
         //=== End: pre-sort each variable
 
         //=== Start: initialize ynodeTheta and ynodeX for the root node.
@@ -297,19 +271,6 @@ public strictfp class RegtreeFit {
         	ynodeTheta = new int[numTheta][];
         	int[] Thetacount = new int[numTheta];
         	for (int i=0; i < N; i++) {
-        		/*
-        		System.out.println("*****");
-        		System.out.println(Arrays.deepToString(allTheta));
-        		System.out.println(Arrays.deepToString(allX));
-        		System.out.println(Arrays.toString(y));
-        		System.out.println(Arrays.deepToString(dataIdxs));
-        		System.out.println(N);
-        		System.out.println(Arrays.toString(Thetacount));
-        		System.out.println(i);
-        		*/
-        		
-        		
-        		
                 Thetacount[dataIdxs[i][0]]++;
         	}
         	for (int i=0; i < numTheta; i++) {
@@ -382,8 +343,7 @@ public strictfp class RegtreeFit {
             }
             ybar = ysum / Nnode;
             double mincost = (Nnode == 1 ? 0 : (ysumOfSq - ysum*ysum/Nnode) / (Nnode-1));
-            boolean impure = (mincost > 1e-20 * ystd);
-            impure = (ymax - ymin > 1e-10);
+            boolean impure = (ymax - ymin > 1e-10);
 
             cutvar[tnode] = 0; // this marks the current node as a leaf for now until we decide to split it
             
