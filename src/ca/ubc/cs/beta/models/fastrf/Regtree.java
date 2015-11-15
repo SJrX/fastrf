@@ -10,23 +10,64 @@ import java.util.TreeSet;
 import java.util.Vector;
 
 import ca.ubc.cs.beta.models.fastrf.utils.Utils;
-import static ca.ubc.cs.beta.models.fastrf.utils.Hash.*;
+
 
 public strictfp class Regtree implements java.io.Serializable {    
     private static final long serialVersionUID = -7861532246973394125L;
-    
+
+    /**
+     * Number of nodes in the tree
+     */
     public int numNodes;
     public int[] node;
     public int[] parent;
     public double[][] ysub;
+
+    /**
+     * For each node which variable was used to split
+     * The absolute value indicates the variable,
+     * if positive then the variable is continuous,
+     * otherwise the split is on a categorical variable.
+
+     */
     public int[] var;
+
+    /**
+     * For continuous parameters, stores where the cut was made.
+     * For categorical parameters, it stores an index into cat split.
+     */
     public double[] cut;
+
+    /**
+     * Nx2 array for each node, lists the index of the children.
+     */
     public int[][] children;
+
+    /**
+     * For each node how many points are in it's leaves.
+     */
     public int[] nodesize;
+
+    /**
+     * Number of predictors (sum of parameters + instance features)
+     */
     public int npred;
+
+    /**
+     * For every categorical split an element will be added to this list
+     * the cut value for that node will point to an index here.
+     *
+     */
     public int[][] catsplit;
-    
+
+    /**
+     * For each node lists the predicted response value y.
+     */
     public double[] nodepred;
+
+    /**
+     * For each node lists the predicted variance in the response value y.
+     */
     public double[] nodevar;
     
     public boolean resultsStoredInLeaves;
@@ -56,126 +97,7 @@ public strictfp class Regtree implements java.io.Serializable {
         preprocessed = false;
         preprocessed_for_classification = false;
     }
-    
-    
-    public boolean equals(Object o)
-    {
-    	if(o instanceof Regtree)
-    	{
-    		Regtree rt = (Regtree) o;
-    		if (npred != rt.npred) return false;
-    		if (resultsStoredInLeaves != rt.resultsStoredInLeaves) return false;
-    		if (preprocessed != rt.preprocessed) return false;
-    		if (logModel != rt.logModel) return false;
-    		
-    		if (!Arrays.equals(var,rt.var)) return false;
-    		if (!Arrays.equals(cut,rt.cut)) return false;
-    		
-    		if (!Arrays.deepEquals(catsplit,rt.catsplit)) return false;
-    		if (!Arrays.deepEquals(ysub,rt.ysub)) return false;
-    		if (!Arrays.deepEquals(children,rt.children)) return false;
-    		
-    		if (!Arrays.equals(parent,rt.parent)) return false;
-    		
-    		
-    		
-    		if (!Arrays.equals(nodesize,rt.nodesize)) return false;
-    		
-    		
 
-    		if (!Arrays.equals(nodepred,rt.nodepred)) return false;
-    		if (!Arrays.equals(nodevar,rt.nodevar)) return false;
-
-    		
-
-    		
-    		if (!Arrays.equals(weightedpred,rt.weightedpred)) return false;
-    		if (!Arrays.equals(weightedvar,rt.weightedvar)) return false;
-    		if (!Arrays.equals(weights,rt.weights)) return false;
-
-    		return true;
-
-    		
-    	}
-    	return false;
-    	
-    }
-    
-    
-    
-    @SuppressWarnings("unused")
-	public int hashCode()
-    {
-    	
-    	//if (true) throw new IllegalStateException("");
-    	
-    	if(true) return 0;
-    	System.out.println("=======");
-    	
-    	int hash = 0;
-    	
-    	hash = hash(node) + 31*hash;
-    	System.out.println("HASH1:"+hash(node));
-    	Arrays.toString(node);
-    	
-    	hash = hash(parent) + 31*hash;
-    	System.out.println("HASH2:"+hash(parent));
-    	Arrays.toString(parent);
-    	
-    	hash = hash(var) + 31*hash;
-    	System.out.println("HASH3:"+hash(var));
-    	
-    	
-    	
-    	hash = hash(cut) + 31*hash;
-    	System.out.println("HASH4:"+hash(cut));
-    	
-    	hash = hash(nodesize) + 31*hash;
-    	System.out.println("HASH5:"+hash(nodesize));
-    	
-    	hash = npred + 31*hash;
-    	System.out.println("HASH6:"+npred);
-    	
-    	hash = hash(children) + 31*hash;
-    	System.out.println("HASH7:"+hash(children));
-    	
-    	hash = hash(catsplit) + 31*hash;
-    	System.out.println("HASH8:"+hash(catsplit));
-    	
-    	hash = hash(ysub) + 31*hash;
-    	System.out.println("HASH9:"+hash(ysub));
-    	
-    	
-    	
-    	hash = hash(nodepred) + 31*hash;
-    	System.out.println("HASH0:"+hash(nodepred));
-    	
-    	hash = hash(nodevar) + 31*hash;
-    	System.out.println("HASHA:"+hash(nodevar));
-    	
-    	hash = (resultsStoredInLeaves?1:0) + 31*hash;
-    	System.out.println("HASHB:"+resultsStoredInLeaves);
-    	
-    	hash = preprocessed?1:0 + 31*hash;
-    	System.out.println("HASHC:"+preprocessed);
-    	
-    	hash = hash(weightedpred) + 31*hash;
-    	System.out.println("HASHD:"+hash(weightedpred));
-    	
-    	hash = hash(weightedvar) + 31*hash;
-    	System.out.println("HASHE:"+hash(weightedvar));
-    	
-    	hash = hash(weights) + 31*hash;
-    	System.out.println("HASHF:"+hash(weights));
-    	
-    	hash = logModel + 31*hash;
-    	System.out.println("HASHG:"+logModel);
-    	
-    	return hash;
-    	
-    	
-    }
-    
     
     public Regtree(int numNodes, int ncatsplit, boolean storeResultsInLeaves, int logModel) {
         this(numNodes, logModel);

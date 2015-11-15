@@ -23,6 +23,7 @@ public strictfp class RegtreeBuildParams implements java.io.Serializable {
     public int[][][] condParentVals = null;
     
     public double minVariance;
+
     public String toString()
     {
         try{
@@ -66,40 +67,6 @@ public strictfp class RegtreeBuildParams implements java.io.Serializable {
     public long seed = -1;
     public Random random = null;
 	public boolean brokenVarianceCalculation = true;
-    
-    /**
-     * Matlab cell arrays don't carry over to Java very well so create the conditional arrays from the cell arrays
-     * Called from matlab instead of setting the condParents and condParentVals arrays
-     */
-    public void conditionalsFromMatlab(int[] cond, int[] condParent, Object[] condParentValsObj, int nvars) {
-        condParents = new int[nvars][];
-        condParentVals = new int[nvars][][];
-        
-        for (int i=0; i < nvars; i++) {
-            int count = 0;
-            for (int j=0; j < cond.length; j++) {
-                if (cond[j]-1 == i) {
-                    count++;
-                }
-            }
-            condParents[i] = new int[count];
-            condParentVals[i] = new int[count][];
-            
-            count = 0;
-            for (int j=0; j < cond.length; j++) {
-                if (cond[j]-1 == i) {
-                    condParents[i][count] = condParent[j]-1;
-                    if(condParentValsObj[j] instanceof int[]) {
-                        condParentVals[i][count] = (int[])condParentValsObj[j];
-                    } else {
-                        condParentVals[i][count] = new int[1];
-                        condParentVals[i][count][0] = (Integer)condParentValsObj[j];
-                    }
-                    count++;
-                }
-            }
-        }
-    }
 
 	public void setLogModel(int logModel) {
 		this.logModel = logModel;

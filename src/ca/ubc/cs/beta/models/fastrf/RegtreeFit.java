@@ -6,48 +6,15 @@ import ca.ubc.cs.beta.models.fastrf.utils.*;
 public strictfp class RegtreeFit {
     
     private static Random r;
-    
-    //Not sure why we need this field
-    @SuppressWarnings("unused")
-	private static long seed;
+
     //*
     private static final int RAND_MAX = Integer.MAX_VALUE - 1;
     private static int rand() {
-        int retn = r.nextInt(Integer.MAX_VALUE);
-        return retn;
+        return r.nextInt(Integer.MAX_VALUE);
     }
-    /*/
-    private static final int RAND_MAX = 2147483646;
-    private static int rand() {
-        return (int)(seed = (seed*22695477+1)%(RAND_MAX+1));
-    }
-    //*/
-    
+
     private static final double INVALID_CRITVAL = -1e13;
-    
-    public static Regtree fit(double[][] allTheta, double[][] allX, double[] y, RegtreeBuildParams params) {    
-        Random r = params.random;
-        if (r == null) {
-            r = new Random();
-            if (params.seed != -1) {
-                r.setSeed(params.seed);
-            }
-        }        
-        
-        int N = y.length;
-        int numTheta = allTheta.length;
-        int numX = (allX == null ? 0 : allX.length);
-        
-        // Do bootstrap sampling for data for each tree.
-        int[][] dataIdxs = new int[N][2];
-        for (int i = 0; i < N; i++) {
-            dataIdxs[i][0] = (numTheta == 0 ? 0 : r.nextInt(numTheta));
-            dataIdxs[i][1] = (numX == 0 ? 0 : r.nextInt(numX));
-        }
-        return fit(allTheta, allX, dataIdxs, y, params);
-    }
-    
-    
+
     private static int[][] dataIdxs;
     private static double[] y;    
 
@@ -69,23 +36,14 @@ public strictfp class RegtreeFit {
     	
     /**
      * Fits a regression tree.
-     * @params allTheta, allX: matrices of all of the configurations/instances
-     * @params dataIdxs row i is data point i with X=[allTheta[dataIdxs[i][1]], allX[dataIdxs[i][2]]] and y=y[i].
-     * @params y a vector of size X.length of response values
-     * @params params see RegtreeBuildParams
+     * @param allTheta, allX: matrices of all of the configurations/instances
+     * @param dataIdxs row i is data point i with X=[allTheta[dataIdxs[i][1]], allX[dataIdxs[i][2]]] and y=y[i].
+     * @param y a vector of size X.length of response values
+     * @param params see RegtreeBuildParams
      */
     public static Regtree fit(double[][] allTheta, double[][] allX, int[][] dataIdxs, double[] y, RegtreeBuildParams params) {
-    	boolean printDebug = false;
-    	/*
-    	if(RoundingMode.ROUND_NUMBERS_FOR_MATLAB_SYNC)
-    	{
-    	    System.out.println("dataIdxs" + Arrays.deepToString(dataIdxs));
-    	}*/
-    
-      
-    	long startTime = new Date().getTime();
-    	long currentTime = startTime;
-    	
+
+
         if (dataIdxs == null || dataIdxs.length == 0) throw new RuntimeException("Cannot build a tree with no data.");
         int N = dataIdxs.length;
         if (y.length != N) throw new RuntimeException("The number of data points and the number of responses must be the same.");
@@ -97,8 +55,7 @@ public strictfp class RegtreeFit {
                 r.setSeed(params.seed);
             }
         }
-        seed = params.seed;
-        
+
         // Calculate input data dimensions
         int numTheta = (allTheta == null ? 0 : allTheta.length);
         int numX = (allX == null ? 0 : allX.length);
@@ -109,7 +66,8 @@ public strictfp class RegtreeFit {
         //=== Start: drop rows of allTheta and allX that we don't have data for.
         boolean[] hasThetaIdx = new boolean[numTheta+1];
         boolean[] hasXIdx = new boolean[numX+1];
-        
+
+        //Determine if Theta or X is missing
         if (numTheta != 0) {
             for (int i=0; i < N; i++) {
                 hasThetaIdx[dataIdxs[i][0]] = true;
@@ -133,7 +91,9 @@ public strictfp class RegtreeFit {
             numMissingXIdxsBeforeThis[i] = numMissing;
             if (!hasXIdx[i]) numMissing++;
         }
-        
+
+
+        // Determined number of missing indexes before each element.
         double[][] actualAllTheta = new double[numTheta - numMissingThetaIdxsBeforeThis[numTheta]][];
         for (int i=0, counter=0; i < numTheta; i++) {
             if (hasThetaIdx[i]) actualAllTheta[counter++] = allTheta[i];
@@ -147,7 +107,14 @@ public strictfp class RegtreeFit {
         }
         allX = actualAllX;
         numX = allX.length;
-        
+
+        /**
+         * UNKNOWN LOGIC ABOVE? Something about repairing datastructures after we have removed the ones with no data.
+         */
+
+
+
+
         // Rows dropped, we have to now renumber dataIdxs to the new rows
         int[][] newDataIdxs = new int[N][2];
         for (int i=0; i < N; i++) {
@@ -171,18 +138,9 @@ public strictfp class RegtreeFit {
         
         //=== Extract data from the input params.
         int[] catDomainSizes = params.catDomainSizes;
-        /*
-        System.out.println("2");
-        System.out.println("Params:" + params);
-        System.out.println("Nvars" + nvars);
-       // System.out.println("AllX" + Arrays.deepToString(allX));
-        System.out.println("AllTheta" + Arrays.deepToString(allTheta));
-        System.out.println("dataIdxs" + Arrays.deepToString(dataIdxs));
-        System.out.println("y" + Arrays.toString(y));
-        //System.out.println("cens:" + Arrays.toString(cens));
-*/
+
         if (catDomainSizes != null && catDomainSizes.length != nvars) {
-            throw new RuntimeException("catDomainSizes must be of the same length as size(X, 2), i.e. " + nvars + ", but is " + catDomainSizes.length);
+            throw new IllegalArgumentException("catDomainSizes must be of the same length as size(X, 2), i.e. " + nvars + ", but is " + catDomainSizes.length + ". In otherwords, it must be the length of the parameter vector theta PLUS the length of the instance feature vector.");
         }
         int maxDomSize = 0;
         for (int i=0; i < nvars; i++) {
@@ -238,14 +196,14 @@ public strictfp class RegtreeFit {
         // For sorting
         sorder = new int[Math.max(N, maxDomSize)];
         
-        double ystd = Utils.var(y);
-        
+
         //=== Start: pre-sort each variable
         // The entries of sortedTheta and sortedX are indices into allTheta/allX.
+
+        /**
+         * UNKNOWN WHAT OR WHY WE ARE SORTING
+         */
         int[][] sortedTheta = new int[numThetavars][];
-        int[][] sortedX = new int[numXvars][];
-        int[] index_into_dataIdxs_here = new int[N];
-        
         double[] temp = new double[Math.max(numTheta, numX)];
         for (int i=0; i < numThetavars; i++) {
             if (catDomainSizes[i] != 0) continue;
@@ -255,6 +213,9 @@ public strictfp class RegtreeFit {
             sortedTheta[i] = new int[numTheta];
             rankSort(temp, numTheta, sortedTheta[i]);
         }
+
+
+        int[][] sortedX = new int[numXvars][];
         for (int i=0; i < numXvars; i++) {
             if (catDomainSizes[i+numThetavars] != 0) continue;
             for (int j=0; j < numX; j++) {
@@ -263,8 +224,10 @@ public strictfp class RegtreeFit {
             sortedX[i] = new int[numX];
             rankSort(temp, numX, sortedX[i]);
         }
-        rankSort(y, N, index_into_dataIdxs_here); 
-        temp = null;
+
+        int[] index_into_dataIdxs_here = new int[N];
+        rankSort(y, N, index_into_dataIdxs_here);
+
         //=== End: pre-sort each variable
 
         //=== Start: initialize ynodeTheta and ynodeX for the root node.
@@ -275,13 +238,11 @@ public strictfp class RegtreeFit {
         //===
         //=== The temporary Thetacount[i] holds how many times configuration i appears. E.g., in the example above, Thetacount[3-1]=2. Similarly for Xcount.  
         int[][] y_node = new int[2*N][];
-        int[][][] y_Theta = new int[2*N][][]; 
-        int[][][] y_X = new int[2*N][][];
-        
-        int[][] ynodeTheta;
-        int[][] ynodeX;
-        
         y_node[0] = index_into_dataIdxs_here;
+
+        int[][][] y_Theta = new int[2*N][][];
+        int[][] ynodeTheta;
+
         
         if (N * Math.log10(N) < numTheta || numTheta == 0) { 
         	// Use sorting instead of presorting
@@ -290,19 +251,6 @@ public strictfp class RegtreeFit {
         	ynodeTheta = new int[numTheta][];
         	int[] Thetacount = new int[numTheta];
         	for (int i=0; i < N; i++) {
-        		/*
-        		System.out.println("*****");
-        		System.out.println(Arrays.deepToString(allTheta));
-        		System.out.println(Arrays.deepToString(allX));
-        		System.out.println(Arrays.toString(y));
-        		System.out.println(Arrays.deepToString(dataIdxs));
-        		System.out.println(N);
-        		System.out.println(Arrays.toString(Thetacount));
-        		System.out.println(i);
-        		*/
-        		
-        		
-        		
                 Thetacount[dataIdxs[i][0]]++;
         	}
         	for (int i=0; i < numTheta; i++) {
@@ -313,10 +261,11 @@ public strictfp class RegtreeFit {
                 int idx = dataIdxs[dataIdx][0];
                 ynodeTheta[idx][--Thetacount[idx]] = i;
         	}
-        	Thetacount = null;
-        	y_Theta[0] = ynodeTheta;
+            y_Theta[0] = ynodeTheta;
         }
-        
+
+        int[][][] y_X = new int[2*N][][];
+        int[][] ynodeX;
         if (N * Math.log10(N) < numX || numX == 0) {
         	// Use sorting instead of presorting
         	y_X[0] = null;
@@ -335,8 +284,7 @@ public strictfp class RegtreeFit {
 	            int idx = dataIdxs[index_into_dataIdxs_here[i]][1];
 	            ynodeX[idx][--Xcount[idx]] = i;
 	        }
-	        Xcount = null;
-	        y_X[0] = ynodeX;
+            y_X[0] = ynodeX;
         }
         //=== End: initialize ynodeTheta and ynodeX for the root node.
         
@@ -346,9 +294,7 @@ public strictfp class RegtreeFit {
         stack[0] = 0;
         int stacktop = 0; // Top of the stack
         int numNodes = 1; // Number of nodes in the tree so far
-        
-        if (printDebug) System.out.println("Setup took " + (-currentTime + (currentTime = new Date().getTime())) + " milliseconds.");
-        
+
         while (stacktop >= 0) {
         	//== Get the data for this node.
             int tnode = stack[stacktop--];
@@ -374,9 +320,8 @@ public strictfp class RegtreeFit {
                 if (y[idx] < ymin) ymin = y[idx];
             }
             ybar = ysum / Nnode;
-            double mincost = (Nnode == 1 ? 0 : (ysumOfSq - ysum*ysum/Nnode) / (Nnode-1));
-            boolean impure = (mincost > 1e-20 * ystd);
-            impure = (ymax - ymin > 1e-10);
+
+            boolean impure = (ymax - ymin > 1e-10);
 
             cutvar[tnode] = 0; // this marks the current node as a leaf for now until we decide to split it
             
@@ -433,6 +378,7 @@ public strictfp class RegtreeFit {
                     int[][] sortedData, ynodeData;
                     double[][] allData;
                     int is_X;
+                    // if nextVar is greater than numThetaVar it is a feature from X.
                     if (nextvar < numThetavars) {
                         varIdx = nextvar;
                         numData = numTheta;
@@ -790,11 +736,6 @@ public strictfp class RegtreeFit {
                     ysub[tnode][i] = y[idx];
                 }
             }
-            if (printDebug) {
-            	long diff = (-currentTime + (currentTime = new Date().getTime()));
-            	if (diff > 1000)
-            		System.out.println("Node " + tnode + " had " + Nnode + " data points and took " + diff + " milliseconds.");
-            }
         }
         
         //==================== Build the actual tree ===========================
@@ -872,8 +813,7 @@ public strictfp class RegtreeFit {
         leftside = null;
         rightside = null;
         
-    	if (printDebug)
-    		System.out.println("Building the tree took a total of " + (new Date().getTime() - startTime) + " milliseconds.");   	
+
         return tree;
     }
     
@@ -969,7 +909,7 @@ public strictfp class RegtreeFit {
             next = variableValuesHere[maxloc+1];
         }
                 
-        double cutval = 0;
+        double cutval;
         if (next - prev < 1.9*1e-6) {
             cutval = (next + prev) / 2;
         } else {
