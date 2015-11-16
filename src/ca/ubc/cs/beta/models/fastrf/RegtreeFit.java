@@ -378,38 +378,41 @@ public strictfp class RegtreeFit {
                 					compatibleValues = getCompatibleValues(tnode, parent_idx, N, parent, cutvar, cutpoint, leftchildren, rightchildren, catsplit, catDomainSizes);
                 					for(int cv : compatibleValues) {
 	            						boolean isok = false;
-	            						if (op == 0) { //EQ
-	            							double ov = values[0]; 
-	            							if (cv == ov) {
-	                							isok = true;
-	                						}
-	            						}
-	            						if (op == 1) { //NEQ
-	            							double ov = values[0]; 
-	            							if (cv != ov) {
-	                							isok = true;
-	                						}
-	            						}
-	            						if (op == 2) { //LE
-	            							double ov = values[0]; 
-	            							if (cv < ov) {
-	                							isok = true;
-	                						}
-	            						}
-	            						if (op == 3) { //GR
-	            							double ov = values[0]; 
-	            							if (cv > ov) {
-	                							isok = true;
-	                						}
-	            						}
-	            						if (op == 4) { //IN
-	            							for (double ov: values) {
-	            								if (cv == ov) {
-	                    							isok = true;
-	                    							break;
-	                    						}
-	            							}
-	            						}
+
+                                        double ov = values[0];
+                                        switch(op){
+                                            case 0: //EQ
+                                                if (cv == ov) {
+                                                    isok = true;
+                                                }
+                                                break;
+                                            case 1: //NEQ
+                                                if (cv != ov) {
+                                                    isok = true;
+                                                }
+                                                break;
+                                            case 2://LE
+                                                if (cv < ov) {
+                                                    isok = true;
+                                                }
+                                                break;
+                                            case 3: //GR
+                                                if (cv > ov) {
+                                                    isok = true;
+                                                }
+
+                                                break;
+                                            case 4: //IN
+                                                for (double ovv: values) {
+                                                    if (cv == ovv) {
+                                                        isok = true;
+                                                        break;
+                                                    }
+                                                }
+                                                break;
+                                            default:
+                                                throw new IllegalStateException("Unknown operator: " + op);
+                                        }
 		                				if (!isok) {
 		        							fullfill_cond = false;
 		        							break;

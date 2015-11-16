@@ -84,7 +84,7 @@ public class RegtreeFitTestCategoricalDomain {
         rbp.nameConditionsMapParentsArray.put(1,new int[][]{{0}});
 
         rbp.nameConditionsMapParentsValues = new HashMap<>();
-        rbp.nameConditionsMapParentsValues.put(1,new double[][][]{{{1.0}}});
+        rbp.nameConditionsMapParentsValues.put(1,new double[][][]{{{2.0}}});
 
 
         /*
