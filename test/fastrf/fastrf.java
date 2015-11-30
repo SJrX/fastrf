@@ -520,5 +520,112 @@ public class fastrf {
 		assertTrue(pred[0][0] ==  pred[2][0]);
 		assertTrue(pred[1][0] != pred[2][0]);
 	}
+	
+	@Test
+	/*
+	 * test IN by adding a "in" condition that disables parameter "1" always and since "2" depends on "1" both should be deactivated;
+	 * since "2" is the only informative variable, always the same value should be predicted 
+	 */
+	public void testNonActiveTwoSteps() {
+		
+		
+		int[] catDomainSizes = {2,2,2,0};
+		RegtreeBuildParams buildparams = new RegtreeBuildParams(false, 1, 1, catDomainSizes);
+		buildparams.minVariance = Math.pow(10,-14);
+		buildparams.ratioFeatures = 1;
+		
+		buildparams.nameConditionsMapOp = new HashMap<Integer, int[][]>();
+		buildparams.nameConditionsMapParentsArray = new HashMap<Integer, int[][]>();
+		buildparams.nameConditionsMapParentsValues = new HashMap<Integer, double[][][]>();
+		
+		// "2" | "1" in {1,0,2.0} # is always ok
+		int[][] op = {{4}}; //IN
+		buildparams.nameConditionsMapOp.put(2, op);
+		int[][] par = {{1}}; //Parent first theta
+		buildparams.nameConditionsMapParentsArray.put(2, par);
+		double[][][] val = {{{1.0, 2.0}}}; //value 1,0,2.0
+		buildparams.nameConditionsMapParentsValues.put(2, val);
+		
+		// "1" | "0" in {2.0} # should always fail
+		int[][] op2 = {{4}}; //IN
+		buildparams.nameConditionsMapOp.put(1, op2);
+		int[][] par2 = {{0}}; //Parent first theta
+		buildparams.nameConditionsMapParentsArray.put(1, par2);
+		double[][][] val2 = {{{2.0}}}; //value 2.0,3.0
+		buildparams.nameConditionsMapParentsValues.put(1, val2);
+		
+		int numTrees = 10;
+		double[][] allTheta = {{1.,1.,1.}, {1.,1.,2.}};
+		
+		//no features
+		double[][] allX = {{0}};
+		int[][] theta_inst_idxs = {{0,0},{1,0},{0,0},{1,0}};
+		double[] y = {4., 1., 5., 2.};
+	
+		RandomForest rf = RandomForest.learnModel(numTrees, allTheta, allX, theta_inst_idxs, y, buildparams);
+	
+		double[][] x = {{1.,1.,1.,0.,}, {1.,1.,2.,0.}, {1.,0.,1.,0}};
+		double[][] pred = RandomForest.apply(rf, x);
+		System.out.println("IN NonActiveTwoSteps Test:");
+		System.out.println(Arrays.deepToString(pred));
+		//fail("Not yet implemented");
+		
+		assertTrue(pred[0][0] == pred[1][0]);
+		assertTrue(pred[2][0] == pred[1][0]);
+	}
+	
+	@Test
+	/*
+	 * test IN by adding a "in" condition that disables parameter "1" always and since "2" depends on "1" both should be deactivated;
+	 * since "2" is the only informative variable, always the same value should be predicted 
+	 */
+	public void testActiveTwoSteps() {
+		
+		
+		int[] catDomainSizes = {3,3,3,0};
+		RegtreeBuildParams buildparams = new RegtreeBuildParams(false, 1, 1, catDomainSizes);
+		buildparams.minVariance = Math.pow(10,-14);
+		buildparams.ratioFeatures = 1;
+		
+		buildparams.nameConditionsMapOp = new HashMap<Integer, int[][]>();
+		buildparams.nameConditionsMapParentsArray = new HashMap<Integer, int[][]>();
+		buildparams.nameConditionsMapParentsValues = new HashMap<Integer, double[][][]>();
+		
+		// "2" | "1" in {1,0, 2.0,3.0} # is always ok
+		int[][] op = {{4}}; //IN
+		buildparams.nameConditionsMapOp.put(2, op);
+		int[][] par = {{1}}; //Parent second theta
+		buildparams.nameConditionsMapParentsArray.put(2, par);
+		double[][][] val = {{{1.0,2.0,3.0}}}; //value 1.0,2.0,3.0
+		buildparams.nameConditionsMapParentsValues.put(2, val);
+		
+		// "1" | "0" in {1.0, 2.0,3.0} # is always ok
+		int[][] op2 = {{4}}; //IN
+		buildparams.nameConditionsMapOp.put(1, op2);
+		int[][] par2 = {{0}}; //Parent first theta
+		buildparams.nameConditionsMapParentsArray.put(1, par2);
+		double[][][] val2 = {{{1.0,2.0,3.0}}}; //value 1.0,2.0,3.0
+		buildparams.nameConditionsMapParentsValues.put(1, val2);
+		
+		int numTrees = 10;
+		double[][] allTheta = {{1.,1.,1.}, {1.,1.,2.}};
+		
+		//no features
+		double[][] allX = {{0}};
+		int[][] theta_inst_idxs = {{0,0},{1,0},{0,0},{1,0}};
+		double[] y = {4., 1., 5., 2.};
+				
+	
+		RandomForest rf = RandomForest.learnModel(numTrees, allTheta, allX, theta_inst_idxs, y, buildparams);
+	
+		double[][] x = {{1.,1.,1.,0.,}, {1.,1.,2.,0.}, {1.,2.,1.,0}};
+		double[][] pred = RandomForest.apply(rf, x);
+		System.out.println("IN ActiveTwoSteps Test:");
+		System.out.println(Arrays.deepToString(pred));
+		//fail("Not yet implemented");
+		
+		assertTrue(pred[0][0] == pred[2][0]);
+		assertTrue(pred[2][0] != pred[1][0]);
+	}
 
 }
