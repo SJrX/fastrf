@@ -1,6 +1,8 @@
 package ca.ubc.cs.beta.models.fastrf;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Arrays;
@@ -130,6 +132,7 @@ public strictfp class RegtreeBuildParams implements java.io.Serializable {
 			bpNew.nameConditionsMapParentsArray = new HashMap<Integer, int[][]>(bp.nameConditionsMapParentsArray);
 			bpNew.nameConditionsMapParentsValues = new HashMap<Integer, double[][][]>(bp.nameConditionsMapParentsValues);
 			bpNew.nameConditionsMapOp = new HashMap<Integer, int[][]>(bp.nameConditionsMapOp);
+			System.arraycopy(bp.topolical_order_vars, 0, bpNew.topolical_order_vars, 0, size);
 			
 			bpNew.random = bp.random;
 			bpNew.ratioFeatures = bp.ratioFeatures;
@@ -140,5 +143,79 @@ public strictfp class RegtreeBuildParams implements java.io.Serializable {
 			bpNew.seed = bp.seed;
 			return bpNew;
 	}
+	
+	public int[] topolical_order_vars;
+	
+	/*
+	 * generates once a topological order of the variables, such that
+	 * X is listed before Y, if there is a conditional of the form "Y | X"
+	 */
+	public void generate_topological_order(){
+		if (this.topolical_order_vars != null) { // do this only once
+			return;
+		}
+		
+        if (this.nameConditionsMapParentsArray == null || this.nameConditionsMapParentsArray.isEmpty()) {
+        	int nvars = this.catDomainSizes.length;
+        	this.topolical_order_vars = new int[nvars];
+            for (int i=0; i <nvars ; i++) {
+            	topolical_order_vars[i] = i;
+            }
+        }
+        else {
+        	int nvars = this.catDomainSizes.length;
+        	int running_index = 0;
+        	int iterations = 0;
+        	this.topolical_order_vars = new int[nvars];
+        	List<Integer> remaining = new ArrayList<Integer>();
+            for (int i=0; i <nvars ; i++) {
+            	remaining.add(i);
+            }
+        	List<Integer> assigned = new ArrayList<Integer>();
+        	while (running_index != nvars && iterations < 1000) {
+        		iterations++;
+        		List<Integer> to_be_removed = new ArrayList<Integer>();
+        		for (int var : remaining){
+        			if (this.nameConditionsMapParentsArray.get(var) == null) { // no parents
+						this.topolical_order_vars[running_index++] = var;
+        				assigned.add(var);
+        				to_be_removed.add(var);
+            		}
+        			else {
+        				// maybe more restrictive than necessary
+        				// potentially, only the parents of one clause have to active in the end
+        				// but this would change the topo order based on the assigned parents
+        				// and we would need to recompute this order for each split which is ineffective
+        				boolean all_parents = true;
+                		for(int i=0; i < this.nameConditionsMapParentsArray.get(var).length; i++) { //iterate over disjunctions
+                			for(int j=0; j < this.nameConditionsMapParentsArray.get(var)[i].length; j++) { //iterate over conjunctions
+                				Integer parent_idx = this.nameConditionsMapParentsArray.get(var)[i][j];
+                				if (! assigned.contains(parent_idx)) {
+                					all_parents = false;
+                					break;
+                				}
+                			}
+                			if (! all_parents){
+                				break;
+                			}
+                		}
+                		if (all_parents){
+                			this.topolical_order_vars[running_index++] = var;
+            				assigned.add(var);
+            				to_be_removed.add(var);
+                		}
+        			}
+        		}
+        		for (Integer var_rm: to_be_removed){
+        			remaining.remove(var_rm);
+        		}
+        	}
+        	if (iterations == 1000){
+        		throw new IllegalArgumentException("Could not find topological order of variables -- probably there is a cylce in the parameters' conditionals.");
+        	}
+        	
+        }
+        
+     }
 	
 }

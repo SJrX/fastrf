@@ -627,5 +627,48 @@ public class fastrf {
 		assertTrue(pred[0][0] == pred[2][0]);
 		assertTrue(pred[2][0] != pred[1][0]);
 	}
-
+	
+	@Test
+	/*
+	 * test topological order
+	 */
+	public void testTopoOrder() {
+		
+		
+		int[] catDomainSizes = {3,3,3,0};
+		RegtreeBuildParams buildparams = new RegtreeBuildParams(false, 1, 1, catDomainSizes);
+		buildparams.minVariance = Math.pow(10,-14);
+		buildparams.ratioFeatures = 1;
+		
+		buildparams.nameConditionsMapOp = new HashMap<Integer, int[][]>();
+		buildparams.nameConditionsMapParentsArray = new HashMap<Integer, int[][]>();
+		buildparams.nameConditionsMapParentsValues = new HashMap<Integer, double[][][]>();
+		
+		// "0" | "1" in {1,0, 2.0,3.0} # is always ok
+		int[][] op = {{4}}; //IN
+		buildparams.nameConditionsMapOp.put(0, op);
+		int[][] par = {{1}}; //Parent second theta
+		buildparams.nameConditionsMapParentsArray.put(0, par);
+		double[][][] val = {{{1.0,2.0,3.0}}}; //value 1.0,2.0,3.0
+		buildparams.nameConditionsMapParentsValues.put(0, val);
+		
+		// "1" | "2" in {1.0, 2.0,3.0} # is always ok
+		int[][] op2 = {{4}}; //IN
+		buildparams.nameConditionsMapOp.put(1, op2);
+		int[][] par2 = {{2}}; //Parent first theta
+		buildparams.nameConditionsMapParentsArray.put(1, par2);
+		double[][][] val2 = {{{1.0,2.0,3.0}}}; //value 1.0,2.0,3.0
+		buildparams.nameConditionsMapParentsValues.put(1, val2);
+		
+		buildparams.generate_topological_order();
+		
+		System.out.println("testTopoOrder:");
+		System.out.println(buildparams.topolical_order_vars[0]);
+		System.out.println(buildparams.topolical_order_vars[1]);
+		System.out.println(buildparams.topolical_order_vars[2]);
+		System.out.println(buildparams.topolical_order_vars[3]);
+		
+		assertTrue(buildparams.topolical_order_vars[3] == 0);
+		assertTrue(buildparams.topolical_order_vars[2] == 1);
+	}
 }
