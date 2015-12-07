@@ -75,13 +75,16 @@ public strictfp class RegtreeFit {
      */
     public static Regtree fit(double[][] allTheta, double[][] allX, int[][] dataIdxs, double[] y, RegtreeBuildParams params) {
     	boolean printDebug = false;
-      
+    	
     	long startTime = new Date().getTime();
     	long currentTime = startTime;
     	
         if (dataIdxs == null || dataIdxs.length == 0) throw new RuntimeException("Cannot build a tree with no data.");
         int N = dataIdxs.length;
         if (y.length != N) throw new RuntimeException("The number of data points and the number of responses must be the same.");
+
+        // generate a topological order of the variables
+        params.generate_topological_order();
         
         r = params.random;
         if (r == null) {
@@ -356,8 +359,8 @@ public strictfp class RegtreeFit {
                         randomPermutation[i] = i;
                     }
                 } else {
-                	//TODO: Missing check: parameters are only active if all their parents are active
-                	for (int idx=0; idx< nvars; idx++) {
+                	for (int idx_=0; idx_< nvars; idx_++) {
+                		int idx = params.topolical_order_vars[idx_];
                 		boolean fullfill_disj = false;
                 		if (params.nameConditionsMapParentsArray.get(idx) == null) {
                 			randomPermutation[nvarsenabled++] = idx;
@@ -373,6 +376,18 @@ public strictfp class RegtreeFit {
                 				boolean is_var_cat = (catDomainSizes[parent_idx] != 0);
                 				int[] compatibleValues = null;
                 				boolean fullfill_cond = true;
+                				
+                				boolean parent_active = false;
+                				for (int en_indx=0; en_indx < nvarsenabled; en_indx++){
+                					if (randomPermutation[en_indx] == parent_idx) { // parent has to be already labeled as active
+                						parent_active = true;
+                						break;
+                					}
+                				}
+                				if (! parent_active && nvarsenabled > 0) {
+                					fullfill_clause = false;
+                					break;
+                				}
                 				
                 				if (is_var_cat) {
                 					compatibleValues = getCompatibleValues(tnode, parent_idx, N, parent, cutvar, cutpoint, leftchildren, rightchildren, catsplit, catDomainSizes);
@@ -465,6 +480,7 @@ public strictfp class RegtreeFit {
             					
             					if (!fullfill_cond) {
             						fullfill_clause = false;
+            						break;
             					}
                 			}
                 			if (fullfill_clause) {
